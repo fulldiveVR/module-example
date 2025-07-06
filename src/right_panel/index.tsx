@@ -2,9 +2,6 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { Provider } from 'react-redux';
-import { store } from '@shared/store';
-import '@shared/styles/global.css';
 import App from './App';
 
 const appContainer = document.createElement("div");
@@ -29,8 +26,6 @@ const root = ReactDOM.createRoot(shadowRoot);
 
 root.render(
   <React.StrictMode>
-    <Provider store={store}>
-      <App />
-    </Provider>
+    <App />
   </React.StrictMode>
 );
