@@ -41,7 +41,7 @@ module.exports = (env, argv) => {
       mode: isProduction ? 'production' : 'development',
       entry: './src/left_panel/index.tsx',
       output: {
-        path: path.resolve(__dirname, '../public/left_panel'),
+        path: path.resolve(__dirname, 'dist/left_panel'),
         filename: 'bundle.js',
         clean: true,
       },
@@ -53,7 +53,7 @@ module.exports = (env, argv) => {
       ],
       devServer: {
         static: {
-          directory: path.join(__dirname, '../public/left_panel'),
+          directory: path.join(__dirname, 'dist/left_panel'),
         },
         port: 8001,
         hot: true,
@@ -68,7 +68,7 @@ module.exports = (env, argv) => {
       mode: isProduction ? 'production' : 'development',
       entry: './src/right_panel/index.tsx',
       output: {
-        path: path.resolve(__dirname, '../public/right_panel'),
+        path: path.resolve(__dirname, 'dist/right_panel'),
         filename: 'bundle.js',
         clean: true,
       },
@@ -80,7 +80,7 @@ module.exports = (env, argv) => {
       ],
       devServer: {
         static: {
-          directory: path.join(__dirname, '../public/right_panel'),
+          directory: path.join(__dirname, 'dist/right_panel'),
         },
         port: 8002,
         hot: true,
