@@ -22,3 +22,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/left_panel/bundle.js
+/right_panel/bundle.js
