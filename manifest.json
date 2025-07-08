@@ -1,5 +1,5 @@
 {
-  "id": "www",
+  "id": "module-example-aiwize-simple",
   "name": "Contract Analysis Agent",
   "version": "1.2.0",
   "description": "An intelligent agent that analyzes legal contracts and identifies potential risks, compliance issues, and key terms.",
@@ -13,10 +13,22 @@
   },
   "metadata": {
     "category": "legal",
-    "tags": ["contracts", "compliance", "risk-analysis"],
-    "supportedLanguages": ["en", "es", "fr"],
+    "tags": [
+      "contracts",
+      "compliance",
+      "risk-analysis"
+    ],
+    "supportedLanguages": [
+      "en",
+      "es",
+      "fr"
+    ],
     "maxFileSize": "10MB",
-    "supportedFormats": ["pdf", "docx", "txt"],
+    "supportedFormats": [
+      "pdf",
+      "docx",
+      "txt"
+    ],
     "lastUpdated": "2024-01-15T10:30:00Z",
     "dependencies": {
       "openai": "^4.0.0",
