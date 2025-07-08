@@ -1,5 +1,5 @@
 {
-  "name": "aiwize-combiner",
+  "name": "module-example-aiwize-simple",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
