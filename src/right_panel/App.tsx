@@ -1,8 +1,12 @@
 import React from "react";
 import { useLoggedIn } from "../hooks/useLoggedIn";
+import { ensureThemeStyles } from "../theme";
+import { useTheme } from "../hooks/useTheme";
 
 function App() {
   const loggedIn = useLoggedIn();
+  const { theme, toggleTheme } = useTheme();
+  ensureThemeStyles();
 
   const containerStyle: React.CSSProperties = {
     width: "100%",
@@ -10,10 +14,10 @@ function App() {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f0f8ff",
+    backgroundColor: "var(--color-background)",
     fontFamily: "Arial, sans-serif",
     fontSize: "18px",
-    color: "#333",
+    color: "var(--text-primary)",
   };
 
   if (loggedIn === false) {
@@ -22,6 +26,22 @@ function App() {
 
   return (
     <div style={{ ...containerStyle, position: "relative" }}>
+      <button
+        onClick={toggleTheme}
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          padding: "6px 10px",
+          backgroundColor: "var(--primary)",
+          color: "var(--neutral-light)",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer",
+        }}
+      >
+        {theme === "light" ? "Dark" : "Light"} Mode
+      </button>
       Hello World (Right Panel)
     </div>
   );
