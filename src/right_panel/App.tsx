@@ -5,7 +5,7 @@ import { useTheme } from "../hooks/useTheme";
 
 function App() {
   const loggedIn = useLoggedIn();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme("right");
   ensureThemeStyles();
 
   const containerStyle: React.CSSProperties = {
@@ -26,22 +26,7 @@ function App() {
 
   return (
     <div style={{ ...containerStyle, position: "relative" }}>
-      <button
-        onClick={toggleTheme}
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          padding: "6px 10px",
-          backgroundColor: "var(--primary)",
-          color: "var(--neutral-light)",
-          border: "none",
-          borderRadius: "4px",
-          cursor: "pointer",
-        }}
-      >
-        {theme === "light" ? "Dark" : "Light"} Mode
-      </button>
+      {/* toggle removed in right panel */}
       Hello World (Right Panel)
     </div>
   );
