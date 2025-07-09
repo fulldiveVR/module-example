@@ -24,5 +24,6 @@ dist-ssr
 *.sw?
 /left_panel/
 /right_panel/
+/data/*
 /data
 /prompts

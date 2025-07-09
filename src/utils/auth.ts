@@ -15,8 +15,11 @@ const client = new CombinerRestClient({ moduleId: manifest.id });
 export async function getToken(): Promise<string | null> {
   try {
     const content = await client.readFile(AIWIZE_TOKEN_PATH, "utf-8");
+    // When the file does not exist (often represented as null/undefined or 404), treat it as
+    // "not logged in" rather than a fatal error. We only surface an error when the server is
+    // completely unreachable. Returning null here is enough for callers to detect logged-out
+    // state without showing the error modal.
     if (!content) {
-      reportError("Modules server is not available now");
       return null;
     }
 
@@ -37,8 +40,16 @@ export async function getToken(): Promise<string | null> {
 
     const trimmed = raw.trim();
     return trimmed.length ? trimmed : null;
-  } catch (err) {
-    // Likely file doesn't exist yet or network issue – treat as no token
+  } catch (err: any) {
+    // Distinguish between "file not found" (404) and true connectivity problems.
+    const status = (err && (err.status || err.code || err?.response?.status)) ?? undefined;
+
+    // 404 is a normal business situation: the token file hasn't been created yet.
+    if (status === 404) {
+      return null;
+    }
+
+    // Anything else likely means the modules server cannot be reached – show the modal.
     reportError("Modules server is not available now");
     return null;
   }
