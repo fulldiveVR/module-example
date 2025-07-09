@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { CombinerRestClient } from "aiwize-combiner-core";
 import SendIcon from "../components/SendIcon";
 import { getToken } from "../utils/auth";
 import { WIZE_TEAMS_BASE_URL } from "../utils/api";
@@ -82,7 +83,21 @@ export default function Chat() {
   const [temperature, setTemperature] = useState<number>(0.7);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+
+  // Combiner REST client (persisted via ref to avoid re-instantiation)
+  const combinerRef = useRef<CombinerRestClient | null>(null);
+  const [docId, setDocId] = useState<string | null>(null);
   const [input, setInput] = useState<string>("");
+  // Add debug logging for session id changes
+  useEffect(() => {
+    if (sessionId) {
+      // eslint-disable-next-line no-console
+      console.log("[Chat] Current agent session id:", sessionId);
+    } else {
+      // eslint-disable-next-line no-console
+      console.log("[Chat] No agent session id");
+    }
+  }, [sessionId]);
   const [textareaHeight, setTextareaHeight] = useState<number>(70);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -135,9 +150,46 @@ export default function Chat() {
     })();
   }, [token]);
 
+  // Initialize Combiner REST client & load persisted chat state (once)
+  useEffect(() => {
+    combinerRef.current = new CombinerRestClient({ moduleId: "module-example-aiwize-chat" });
+    (async () => {
+      try {
+        // fetch existing documents – pick the most recently updated (last)
+        const docs: any[] = await combinerRef.current!.dbList("chat_state");
+        if (docs && docs.length) {
+          const last = docs[docs.length - 1];
+          setDocId(last.id || last._id || null);
+          setSessionId(last.sessionId ?? null);
+          setMessages(last.messages ?? []);
+        }
+      } catch (err: any) {
+        // ignore errors – will create doc on first persist
+      }
+    })();
+  }, []);
+
+  // Persist sessionId & messages to Combiner DB whenever they change
+  useEffect(() => {
+    if (!combinerRef.current) return;
+    (async () => {
+      try {
+        if (docId) {
+          await combinerRef.current!.dbUpdate("chat_state", docId, { sessionId, messages });
+        } else {
+          const created: any = await combinerRef.current!.dbCreate("chat_state", { sessionId, messages });
+          setDocId(created.id || created._id || null);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [sessionId, messages]);
+
   const resetSession = () => {
     setSessionId(null);
     setMessages([] as Message[]);
+    // Combiner persistence hook will overwrite stored state accordingly
   };
 
   const handleSend = async () => {
@@ -166,26 +218,55 @@ export default function Chat() {
     const headers = { Authorization: `Bearer ${token}` };
 
     const onEvent = (obj: any): void => {
-      if (obj.messageDelta) {
-        setMessages((prev: Message[]) =>
-          prev.map((m: Message) =>
-            m.id === assistantId ? { ...m, content: m.content + obj.messageDelta } : m,
+      // 1) streaming delta
+      if (obj.messageDelta !== undefined) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: m.content + String(obj.messageDelta) } : m,
           ),
         );
-      } else if (obj.message) {
-        // final assistant message object – overwrite content if needed
-        const content = (() => {
-          if (typeof obj.message.message === "string") return obj.message.message;
-          if (typeof obj.message.content === "string") return obj.message.content;
-          return JSON.stringify(obj.message.message || obj.message.content || "");
-        })();
-        setMessages((prev: Message[]) =>
-          prev.map((m: Message) => (m.id === assistantId ? { ...m, content } : m)),
-        );
-      } else if (obj.agentSession) {
-        const sid = obj.agentSession.sessionId || obj.agentSession.id;
-        if (sid) setSessionId(sid);
-      } else if (obj.error) {
+        return;
+      }
+
+      // 2) finalized assistant message (complex structure per API docs)
+      if (obj.message) {
+        const msgObj = obj.message;
+        let text = "";
+
+        if (typeof msgObj.message === "string") {
+          // may be JSON string or plain text
+          try {
+            const parsed = JSON.parse(msgObj.message);
+            if (typeof parsed === "string") {
+              text = parsed;
+            } else if (parsed && typeof parsed.content === "string") {
+              text = parsed.content;
+            } else {
+              text = msgObj.message;
+            }
+          } catch {
+            text = msgObj.message;
+          }
+        } else if (typeof msgObj.content === "string") {
+          text = msgObj.content;
+        } else if (msgObj.content && typeof msgObj.content.content === "string") {
+          text = msgObj.content.content;
+        } else {
+          text = JSON.stringify(msgObj.content || msgObj.message || "");
+        }
+
+        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: text } : m)));
+        return;
+      }
+
+      // 3) agent session update – store id only
+      if (obj.agentSession && obj.agentSession.id) {
+        setSessionId(obj.agentSession.id);
+        return;
+      }
+
+      // 4) error event
+      if (obj.error) {
         reportError(obj.error.message || "Stream error");
       }
     };
@@ -230,6 +311,7 @@ export default function Chat() {
     <div
       style={{
         display: "flex",
+        flexWrap: "wrap", // allow controls to flow to next line on small widths
         gap: 8,
         alignItems: "center",
         marginBottom: 8,
