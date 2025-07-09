@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import PlusIcon from "../components/PlusIcon";
-import { CombinerRestClient, CombinerWebSocketClient } from "aiwize-combiner-core";
+import { CombinerRestClient, CombinerWebSocketClient, useBackend } from "aiwize-combiner-core";
 import SendIcon from "../components/SendIcon";
 import PageContentIcon from "../components/PageContentIcon";
 import PageInfoIcon from "../components/PageInfoIcon";
@@ -105,6 +105,7 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
+  const browserBackend = useBackend();
   // Helper to insert text at the current cursor position inside the textarea
   const insertAtCursor = (text: string) => {
     if (!inputRef.current) return;
@@ -129,43 +130,35 @@ export default function Chat() {
     console.log("handleInsertPageContent");
     let content = "";
     try {
-      const core: any = await import("aiwize-combiner-core");
-      content = await core.getPageContent();
-      console.log("handleInsertPageContent", content);
-    } catch {
-      console.log("handleInsertPageContent error");
+      content = await browserBackend.getPageContent();
+    } catch (e) {
+      console.log("handleInsertPageContent error", e);
       /* ignore errors – will fallback to mock */
     }
-    if (!content) content = "Mock page content";
+    if (!content || !content.length) content = "Mock page content";
     insertAtCursor(`<page-content>${content}</page-content>`);
   };
 
   // Insert <page-info>...</page-info> at cursor
   const handleInsertPageInfo = async () => {
-    let info = "";
-    console.log("handleInsertPageInfo");
+    let info: string [] | undefined;
     try {
-      const core: any = await import("aiwize-combiner-core");
-      info = await core.getPageInfo();
-      console.log("handleInsertPageInfo", info);
-    } catch {
-      console.log("handleInsertPageInfo error");
+      info = await browserBackend.getPageInfo();
+    } catch (e) {
+      console.log("handleInsertPageInfo error", e);
       /* ignore errors – will fallback to mock */
     }
-    if (!info) info = "Mock page info";
-    insertAtCursor(`<page-info>${info}</page-info>`);
+    if (!info || !info.length) info = ["Mock page info"];
+    insertAtCursor(`<page-info>${info.join(", ")}</page-info>`);
   };
 
   // Insert <page-screenshots>...</page-screenshots> at cursor
   const handleInsertPageScreenshots = async () => {
     let shots: string[] = [];
-    console.log("handleInsertPageScreenshots");
     try {
-      const core: any = await import("aiwize-combiner-core");
-      shots = await core.getPageScreenshots();
-      console.log("handleInsertPageScreenshots", shots);
-    } catch {
-      console.log("handleInsertPageScreenshots error");
+      shots = await browserBackend.getPageScreenshots();
+    } catch (e) {
+      console.log("handleInsertPageScreenshots error", e);
       /* ignore errors – will fallback to mock */
     }
     if (!shots || !shots.length) shots = ["mock-base64"];
