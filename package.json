@@ -1,5 +1,5 @@
 {
-  "name": "module-example-aiwize-simple",
+  "name": "module-example-aiwize-chat",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {

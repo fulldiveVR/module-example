@@ -3,6 +3,7 @@ import { useLoggedIn } from "../hooks/useLoggedIn";
 import { ensureThemeStyles } from "../theme";
 import { useTheme } from "../hooks/useTheme";
 import { ErrorProvider } from "../context/ErrorContext";
+import Chat from "./Chat";
 
 function PanelApp() {
   const loggedIn = useLoggedIn();
@@ -27,9 +28,9 @@ function PanelApp() {
 
   return (
     <div style={{ ...containerStyle, position: "relative" }}>
-      {/* Content of right panel */}
-      Hello World (Right Panel)
-
+      <div style={{ width: "100%", height: "100%" }}>
+        <Chat />
+      </div>
     </div>
   );
 }
