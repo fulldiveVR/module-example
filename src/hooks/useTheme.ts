@@ -31,7 +31,6 @@ export function useTheme(panelName: string) {
       moduleId: MODULE_ID,
       panel: panelName,
     });
-    // console.log(`[WS ${panelName}] initializing websocket client`);
     wsRef.current = client;
 
     // helper to apply incoming theme object
@@ -42,12 +41,10 @@ export function useTheme(panelName: string) {
     };
 
     client.on("json", (data: any) => {
-      // console.log(`[WS ${panelName}] received json`, data);
       handleIncoming(data);
     });
 
     client.on("message", (raw: any) => {
-      // console.log(`[WS ${panelName}] raw message`, raw);
       // raw may be Blob, ArrayBuffer, or string
       if (typeof raw === "string") {
         try {
@@ -73,7 +70,6 @@ export function useTheme(panelName: string) {
     client.on("open", () => {
       // share current theme with any existing peers
       try {
-        // console.log(`[WS ${panelName}] sending initial theme`, theme);
         client.send({ type: "theme-change", theme });
       } catch (_) {}
     });
@@ -110,7 +106,6 @@ export function useTheme(panelName: string) {
     const client = wsRef.current;
     if (client) {
       try {
-        // console.log(`[WS ${panelName}] send theme-change`, theme);
         client.send({ type: "theme-change", theme });
       } catch (e) {
         /* ignore */
@@ -135,7 +130,6 @@ export function useTheme(panelName: string) {
       const client = wsRef.current;
       if (client) {
         try {
-          // console.log(`[WS ${panelName}] send theme-change`, next);
           client.send({ type: "theme-change", theme: next });
         } catch (_) {}
       }
