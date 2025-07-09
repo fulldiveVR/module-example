@@ -7,6 +7,7 @@ import DarkIcon from "@/assets/theme_dark.svg";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { logout } from "../utils/auth";
 import { ErrorProvider } from "../context/ErrorContext";
+import SessionList from "./SessionList";
 
 function PanelApp() {
   const loggedIn = useLoggedIn();
@@ -19,8 +20,7 @@ function PanelApp() {
     width: "100%",
     height: "100vh",
     display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: "column",
     backgroundColor: "var(--color-background)",
     fontFamily: "Arial, sans-serif",
     fontSize: "18px",
@@ -33,27 +33,36 @@ function PanelApp() {
 
   return (
     <div style={{ ...containerStyle, position: "relative" }}>
-      <button
-        onClick={toggleTheme}
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          padding: 0,
-          backgroundColor: "transparent",
-          border: "none",
-          cursor: "pointer",
-        }}
-      >
-        <img
-          src={theme === "light" ? DarkIcon : LightIcon}
-          alt="Toggle theme"
-          style={{ width: 24, height: 24 }}
-        />
-      </button>
-      Hello World (Left Panel)
+      {/* Header with theme toggle */}
+      <div style={{
+        padding: "12px 16px",
+        display: "flex",
+        justifyContent: "flex-end",
+        borderBottom: "1px solid var(--neutral-outline)",
+      }}>
+        <button
+          onClick={toggleTheme}
+          style={{
+            padding: 0,
+            backgroundColor: "transparent",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          <img
+            src={theme === "light" ? DarkIcon : LightIcon}
+            alt="Toggle theme"
+            style={{ width: 24, height: 24 }}
+          />
+        </button>
+      </div>
 
-      {/* Bottom-left user email */}
+      {/* Sessions list */}
+      <div style={{ height: "50vh", overflow: "hidden" }}>
+        <SessionList />
+      </div>
+
+      {/* Bottom-left user email & logout */}
       {loggedIn && !loading && user?.provider?.email?.id && (
         <>
           <button
