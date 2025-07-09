@@ -1,5 +1,6 @@
 import { CombinerRestClient } from "aiwize-combiner-core";
 import manifest from "../../manifest.json";
+import { reportError } from "./errorReporter";
 
 // Path where the AIWIZE auth token is expected to be stored.
 const AIWIZE_TOKEN_PATH = "aiwize-token.txt";
@@ -14,7 +15,10 @@ const client = new CombinerRestClient({ moduleId: manifest.id });
 export async function getToken(): Promise<string | null> {
   try {
     const content = await client.readFile(AIWIZE_TOKEN_PATH, "utf-8");
-    if (!content) return null;
+    if (!content) {
+      reportError("Modules server is not available now");
+      return null;
+    }
 
     // Combiner API sometimes wraps the file content in an object – normalise it here
     let raw: string = "";
@@ -35,6 +39,7 @@ export async function getToken(): Promise<string | null> {
     return trimmed.length ? trimmed : null;
   } catch (err) {
     // Likely file doesn't exist yet or network issue – treat as no token
+    reportError("Modules server is not available now");
     return null;
   }
 }

@@ -2,8 +2,9 @@ import React from "react";
 import { useLoggedIn } from "../hooks/useLoggedIn";
 import { ensureThemeStyles } from "../theme";
 import { useTheme } from "../hooks/useTheme";
+import { ErrorProvider } from "../context/ErrorContext";
 
-function App() {
+function PanelApp() {
   const loggedIn = useLoggedIn();
   useTheme("right");
   ensureThemeStyles();
@@ -33,4 +34,10 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <ErrorProvider>
+      <PanelApp />
+    </ErrorProvider>
+  );
+}
