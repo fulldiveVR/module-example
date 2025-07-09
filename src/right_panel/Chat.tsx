@@ -87,6 +87,8 @@ export default function Chat() {
   // Combiner REST client (persisted via ref to avoid re-instantiation)
   const combinerRef = useRef<CombinerRestClient | null>(null);
   const [docId, setDocId] = useState<string | null>(null);
+  // Indicates that initial chat_state has been fetched (or attempted)
+  const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [input, setInput] = useState<string>("");
   // Add debug logging for session id changes
   useEffect(() => {
@@ -162,34 +164,61 @@ export default function Chat() {
           setDocId(last.id || last._id || null);
           setSessionId(last.sessionId ?? null);
           setMessages(last.messages ?? []);
+          setSelectedAgent(last.selectedAgent ?? "");
+          setSelectedModel(last.selectedModel ?? "");
+          if (typeof last.temperature === "number") {
+            setTemperature(last.temperature);
+          }
         }
       } catch (err: any) {
         // ignore errors – will create doc on first persist
+      } finally {
+        // mark combiner data as loaded so we can safely persist changes
+        setIsLoaded(true);
       }
     })();
   }, []);
 
   // Persist sessionId & messages to Combiner DB whenever they change
   useEffect(() => {
-    if (!combinerRef.current) return;
+    // Skip persist until we know whether there is an existing chat_state doc.
+    if (!combinerRef.current || !isLoaded) return;
     (async () => {
       try {
+        const payload = { sessionId, messages, selectedAgent, selectedModel, temperature };
         if (docId) {
-          await combinerRef.current!.dbUpdate("chat_state", docId, { sessionId, messages });
+          await combinerRef.current!.dbUpdate("chat_state", docId, payload);
         } else {
-          const created: any = await combinerRef.current!.dbCreate("chat_state", { sessionId, messages });
-          setDocId(created.id || created._id || null);
+          // Only create a new doc if there's meaningful data.
+          if (
+            sessionId !== null ||
+            messages.length > 0 ||
+            selectedAgent ||
+            selectedModel
+          ) {
+            const created: any = await combinerRef.current!.dbCreate("chat_state", payload);
+            setDocId(created.id || created._id || null);
+          }
         }
       } catch {
         /* ignore */
       }
     })();
-  }, [sessionId, messages]);
+  }, [sessionId, messages, selectedAgent, selectedModel, temperature, isLoaded]);
 
+  // Clears only conversation (keeps current model/agent settings)
   const resetSession = () => {
     setSessionId(null);
     setMessages([] as Message[]);
     // Combiner persistence hook will overwrite stored state accordingly
+  };
+
+  // Fully starts a brand-new session: clears settings + conversation
+  const startNewSession = () => {
+    setSelectedAgent("");
+    setSelectedModel("");
+    setTemperature(0.7);
+    resetSession();
   };
 
   const handleSend = async () => {
@@ -320,9 +349,17 @@ export default function Chat() {
       <select
         value={selectedAgent}
         onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-          setSelectedAgent(e.target.value);
-          setSelectedModel("");
-          resetSession();
+          const nextAgent = e.target.value;
+          // Determine if we need to reset conversation.
+          const switchingFromModelFlow = Boolean(selectedModel);
+          const changingAgent = Boolean(selectedAgent) && selectedAgent !== nextAgent;
+
+          setSelectedAgent(nextAgent);
+          setSelectedModel(""); // leaving model flow
+
+          if (switchingFromModelFlow || changingAgent) {
+            resetSession();
+          }
         }}
         style={{ ...controlStyle, padding: 4 }}
       >
@@ -337,9 +374,15 @@ export default function Chat() {
       <select
         value={selectedModel}
         onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-          setSelectedModel(e.target.value);
-          setSelectedAgent("");
-          resetSession();
+          const nextModel = e.target.value;
+          const switchingFromAgentFlow = Boolean(selectedAgent);
+
+          setSelectedModel(nextModel);
+          setSelectedAgent(""); // leaving agent flow
+
+          if (switchingFromAgentFlow) {
+            resetSession();
+          }
         }}
         style={{ ...controlStyle, padding: 4 }}
       >
@@ -365,7 +408,7 @@ export default function Chat() {
       )}
 
       <button
-        onClick={resetSession}
+        onClick={startNewSession}
         style={{ ...controlStyle, padding: "4px 8px", marginLeft: "auto", cursor: "pointer" }}
       >
         New Session
