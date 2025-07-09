@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CombinerWebSocketClient } from "aiwize-combiner-core";
+import { reportError } from "../utils/errorReporter";
 
 export type Theme = "light" | "dark";
 
@@ -77,11 +78,17 @@ export function useTheme(panelName: string) {
       } catch (_) {}
     });
 
-    client.on("close", () => {});
+    client.on("close", () => {
+      reportError("Modules server is not available now");
+    });
 
-    client.on("error", () => {});
+    client.on("error", () => {
+      reportError("Modules server is not available now");
+    });
 
-    client.connect().catch(() => {});
+    client.connect().catch(() => {
+      reportError("Modules server is not available now");
+    });
 
     return () => {
       try {
