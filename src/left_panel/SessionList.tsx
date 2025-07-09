@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { getToken } from "../utils/auth";
 import { WIZE_TEAMS_BASE_URL } from "../utils/api";
+import { CombinerWebSocketClient } from "aiwize-combiner-core";
 
 interface AgentSession {
   id: string;
+  sessionId?: string;
   agentId?: string;
   meta?: {
     name?: string;
@@ -20,16 +22,17 @@ interface SessionListProps {
   width?: number | string;
 }
 
-const STORAGE_CURRENT_KEY = "currentAgentSessionId";
-const STORAGE_OPEN_KEY = "openAgentSession";
+// WebSocket event types
+const EVT_OPEN_SESSION = "OPEN_SESSION";
+const EVT_SESSION_ACTIVE = "SESSION_ACTIVE";
 
 export default function SessionList({ width = "100%" }: SessionListProps) {
   const [token, setToken] = useState<string | null | undefined>(undefined);
   const [sessions, setSessions] = useState<AgentSession[]>([]);
-  const [currentId, setCurrentId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(STORAGE_CURRENT_KEY);
-  });
+  const [currentId, setCurrentId] = useState<string | null>(null);
+
+  // WebSocket ref (persist across renders)
+  const wsRef = useRef<CombinerWebSocketClient | null>(null);
 
   // Load auth token once
   useEffect(() => {
@@ -37,6 +40,44 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
       const t = await getToken();
       setToken(t);
     })();
+  }, []);
+
+  // Establish WS connection when component mounts
+  useEffect(() => {
+    const ws = new CombinerWebSocketClient({ moduleId: "module-example-aiwize-chat", panel: "left" });
+    wsRef.current = ws;
+
+    const handleJson = (msg: any) => {
+      if (!msg || typeof msg !== "object") return;
+      if (msg.type === EVT_SESSION_ACTIVE && msg.payload) {
+        const sid = (msg.payload.id as string) || (msg.payload.sessionId as string);
+        if (sid) setCurrentId(sid);
+      }
+    };
+
+    // Fallback for binary frames containing JSON text
+    const handleRaw = (raw: any) => {
+      if (raw instanceof Blob) {
+        raw.text().then((txt: string) => {
+          try {
+            const parsed = JSON.parse(txt);
+            handleJson(parsed);
+          } catch {}
+        });
+      }
+    };
+
+    ws.on("json", handleJson);
+    ws.on("message", handleRaw);
+
+    ws.connect().catch((err: any) => {
+      // eslint-disable-next-line no-console
+      console.error("[SessionList] WS connect error", err);
+    });
+
+    return () => {
+      ws.disconnect();
+    };
   }, []);
 
   // Fetch sessions when token ready
@@ -65,26 +106,25 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
     })();
   }, [token]);
 
-  // Listen to storage events to keep currentId in sync (changes from Chat)
-  useEffect(() => {
-    const handler = (e: StorageEvent) => {
-      if (e.key === STORAGE_CURRENT_KEY) {
-        setCurrentId(e.newValue);
-      }
-    };
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-  }, []);
+  // No longer using localStorage; currentId is updated via WS EVT_SESSION_ACTIVE.
 
   const openSession = (session: AgentSession) => {
+    // eslint-disable-next-line no-console
     const payload = {
-      sessionId: session.id,
+      id: session.id,
+      sessionId: session.sessionId ?? session.id,
       agentId: session.agentId,
       model: session.model,
-      ts: Date.now(), // ensure distinct value so storage event fires
     };
-    localStorage.setItem(STORAGE_OPEN_KEY, JSON.stringify(payload));
-    localStorage.setItem(STORAGE_CURRENT_KEY, session.id);
+
+    if (wsRef.current) {
+      // eslint-disable-next-line no-console
+      wsRef.current.send({ type: EVT_OPEN_SESSION, payload });
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn("[SessionList] WS not connected – cannot send OPEN_SESSION event");
+    }
+
     setCurrentId(session.id);
   };
 

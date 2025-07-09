@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import PlusIcon from "../components/PlusIcon";
-import { CombinerRestClient } from "aiwize-combiner-core";
+import { CombinerRestClient, CombinerWebSocketClient } from "aiwize-combiner-core";
 import SendIcon from "../components/SendIcon";
 import { getToken } from "../utils/auth";
 import { WIZE_TEAMS_BASE_URL } from "../utils/api";
@@ -75,9 +75,9 @@ async function streamSSE(
   }
 }
 
-// Add storage keys
-const STORAGE_CURRENT_KEY = "currentAgentSessionId";
-const STORAGE_OPEN_KEY = "openAgentSession";
+// WebSocket event types
+const EVT_OPEN_SESSION = "OPEN_SESSION";
+const EVT_SESSION_ACTIVE = "SESSION_ACTIVE";
 
 export default function Chat() {
   const [token, setToken] = useState<string | null | undefined>(undefined);
@@ -86,7 +86,8 @@ export default function Chat() {
   const [selectedModel, setSelectedModel] = useState<string>("");
   const [selectedAgent, setSelectedAgent] = useState<string>("");
   const [temperature, setTemperature] = useState<number>(0.7);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [agentSessionId, setAgentSessionId] = useState<string | null>(null);
+  const [msgSessionId, setMsgSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
 
   // Combiner REST client (persisted via ref to avoid re-instantiation)
@@ -96,15 +97,7 @@ export default function Chat() {
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [input, setInput] = useState<string>("");
   // Add debug logging for session id changes
-  useEffect(() => {
-    if (sessionId) {
-      // eslint-disable-next-line no-console
-      console.log("[Chat] Current agent session id:", sessionId);
-    } else {
-      // eslint-disable-next-line no-console
-      console.log("[Chat] No agent session id");
-    }
-  }, [sessionId]);
+
   const [textareaHeight, setTextareaHeight] = useState<number>(70);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -124,26 +117,88 @@ export default function Chat() {
     })();
   }, []);
 
-  // Sync current session id to localStorage for left panel highlight
-  useEffect(() => {
-    if (sessionId) {
-      try {
-        localStorage.setItem(STORAGE_CURRENT_KEY, sessionId);
-      } catch {}
-    }
-  }, [sessionId]);
+  // WebSocket ref
+  const wsRef = useRef<CombinerWebSocketClient | null>(null);
 
-  // Handle external request to open specific session (sent via localStorage event)
+  // Establish WS connection once on mount
   useEffect(() => {
-    const fetchHistory = async (sid: string, agentId?: string) => {
-      if (!token) return;
-      try {
-        const resp = await fetch(`${WIZE_TEAMS_BASE_URL}/ai-agents/sessions/${sid}/messages`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+    const ws = new CombinerWebSocketClient({ moduleId: "module-example-aiwize-chat", panel: "right" });
+    wsRef.current = ws;
+
+    const processMessageObj = (msg: any) => {
+      if (!msg || typeof msg !== "object") return;
+      if (msg.type === EVT_OPEN_SESSION && msg.payload) {
+        // eslint-disable-next-line no-console
+        const payload = msg.payload;
+        // Apply agent/model selection rules
+        if (payload.agentId) {
+          setSelectedAgent(payload.agentId);
+          setSelectedModel("");
+        } else if (payload.model && payload.model.id) {
+          setSelectedModel(payload.model.id);
+          setSelectedAgent("");
+          if (typeof payload.model.temperature === "number") {
+            setTemperature(payload.model.temperature);
+          }
+        } else {
+          // Clear current selection so that fallback hook can assign default model
+          setSelectedAgent("");
+          setSelectedModel("gpt-4o-mini");
+          setTemperature(0.7);
+        }
+
+        setAgentSessionId(payload.id ?? null);
+        setMsgSessionId(payload.sessionId ?? null);
+        setMessages([]);
+      }
+    };
+
+    ws.on("json", processMessageObj);
+    ws.on("message", (raw: any) => {
+      if (raw instanceof Blob) {
+        raw.text().then((txt: string) => {
+          try {
+            const parsed = JSON.parse(txt);
+            processMessageObj(parsed);
+          } catch {}
         });
+      }
+    });
+
+    ws.connect().catch((err: any) => {
+      // eslint-disable-next-line no-console
+      console.error("[Chat] WS connect error", err);
+    });
+
+    return () => {
+      ws.disconnect();
+    };
+  }, []);
+
+  // Announce active session to other panels whenever it changes
+  useEffect(() => {
+    if (!wsRef.current || !agentSessionId || !msgSessionId) return;
+    wsRef.current.send({ type: EVT_SESSION_ACTIVE, payload: { id: agentSessionId, sessionId: msgSessionId } });
+  }, [agentSessionId, msgSessionId]);
+
+  // Removed localStorage event handling – now handled via WebSocket
+
+  // Fetch messages whenever we have both a token and a session id
+  useEffect(() => {
+    if (!token || !msgSessionId) return;
+
+    (async () => {
+      try {
+        // eslint-disable-next-line no-console
+        const resp = await fetch(
+          `${WIZE_TEAMS_BASE_URL}/sessions/${msgSessionId}/messages`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
         if (resp.ok) {
           const data: any[] = await resp.json();
           const parsed = data.map((m: any) => {
@@ -175,43 +230,25 @@ export default function Chat() {
           setMessages(parsed);
         } else {
           // eslint-disable-next-line no-console
-          console.warn("Unable to fetch session messages", resp.status);
+          console.warn("[Chat] Unable to fetch session messages", resp.status);
         }
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error("Error fetching history", err);
+        console.error("[Chat] Error fetching history", err);
       }
-    };
+    })();
+  }, [token, msgSessionId]);
 
-    const handler = (e: StorageEvent) => {
-      if (e.key !== STORAGE_OPEN_KEY || !e.newValue) return;
-      try {
-        const payload = JSON.parse(e.newValue);
-        if (!payload || !payload.sessionId) return;
+  // Fallback when no agent/model supplied – default to first available model once we have the list
+  useEffect(() => {
+    if (!agentSessionId && !msgSessionId) return; // only care when a session is active
+    if (selectedAgent || selectedModel) return; // already configured
+    if (!models.length) return; // models not loaded yet
 
-        // Apply agent or model config depending on what we have
-        if (payload.agentId) {
-          setSelectedAgent(payload.agentId);
-          setSelectedModel("");
-        } else if (payload.model && payload.model.id) {
-          setSelectedModel(payload.model.id);
-          setSelectedAgent("");
-          if (typeof payload.model.temperature === "number") {
-            setTemperature(payload.model.temperature);
-          }
-        }
-
-        setSessionId(payload.sessionId);
-        // Reset current messages before loading history
-        setMessages([]);
-        fetchHistory(payload.sessionId, payload.agentId);
-      } catch {}
-    };
-
-    window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+    // eslint-disable-next-line no-console
+    setSelectedModel(models[0].id);
+    setTemperature(0.7);
+  }, [agentSessionId, msgSessionId, selectedAgent, selectedModel, models]);
 
   // Fetch models & agents once token available
   useEffect(() => {
@@ -256,7 +293,8 @@ export default function Chat() {
         if (docs && docs.length) {
           const last = docs[docs.length - 1];
           setDocId(last.id || last._id || null);
-          setSessionId(last.sessionId ?? null);
+          setAgentSessionId(last.agentSessionId ?? last.sessionId ?? null);
+          setMsgSessionId(last.msgSessionId ?? last.historySessionId ?? null);
           setMessages(last.messages ?? []);
           setSelectedAgent(last.selectedAgent ?? "");
           setSelectedModel(last.selectedModel ?? "");
@@ -279,13 +317,14 @@ export default function Chat() {
     if (!combinerRef.current || !isLoaded) return;
     (async () => {
       try {
-        const payload = { sessionId, messages, selectedAgent, selectedModel, temperature };
+        const payload = { agentSessionId, msgSessionId, messages, selectedAgent, selectedModel, temperature };
         if (docId) {
           await combinerRef.current!.dbUpdate("chat_state", docId, payload);
         } else {
           // Only create a new doc if there's meaningful data.
           if (
-            sessionId !== null ||
+            agentSessionId !== null ||
+            msgSessionId !== null ||
             messages.length > 0 ||
             selectedAgent ||
             selectedModel
@@ -298,11 +337,12 @@ export default function Chat() {
         /* ignore */
       }
     })();
-  }, [sessionId, messages, selectedAgent, selectedModel, temperature, isLoaded]);
+  }, [agentSessionId, msgSessionId, messages, selectedAgent, selectedModel, temperature, isLoaded]);
 
   // Clears only conversation (keeps current model/agent settings)
   const resetSession = () => {
-    setSessionId(null);
+    setAgentSessionId(null);
+    setMsgSessionId(null);
     setMessages([] as Message[]);
     // Combiner persistence hook will overwrite stored state accordingly
   };
@@ -383,8 +423,9 @@ export default function Chat() {
       }
 
       // 3) agent session update – store id only
-      if (obj.agentSession && obj.agentSession.id) {
-        setSessionId(obj.agentSession.id);
+      if (obj.agentSession) {
+        if (obj.agentSession.id) setAgentSessionId(obj.agentSession.id);
+        if (obj.agentSession.sessionId) setMsgSessionId(obj.agentSession.sessionId);
         return;
       }
 
@@ -397,16 +438,16 @@ export default function Chat() {
     try {
       if (selectedAgent) {
         // agent flow
-        const url = sessionId
-          ? `${WIZE_TEAMS_BASE_URL}/ai-agent-continue-text/${sessionId}`
+        const url = agentSessionId
+          ? `${WIZE_TEAMS_BASE_URL}/ai-agent-continue-text/${agentSessionId}`
           : `${WIZE_TEAMS_BASE_URL}/ai-agent-run-text/${selectedAgent}`;
         const body = { message: userMsg.content };
         await streamSSE(url, body, headers, onEvent);
       } else if (selectedModel) {
         // model flow
-        const isContinue = Boolean(sessionId);
+        const isContinue = Boolean(agentSessionId);
         const url = isContinue
-          ? `${WIZE_TEAMS_BASE_URL}/ai-agent-continue-by-model/${sessionId}`
+          ? `${WIZE_TEAMS_BASE_URL}/ai-agent-continue-by-model/${agentSessionId}`
           : `${WIZE_TEAMS_BASE_URL}/ai-agent-run-by-model`;
         const body: any = {
           message: userMsg.content,
@@ -660,7 +701,7 @@ export default function Chat() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
       {controlRow}
-      {sessionId && (
+      {agentSessionId && (
         <div
           style={{
             fontSize: 10,
@@ -669,7 +710,7 @@ export default function Chat() {
             textAlign: "right",
           }}
         >
-          Session: {sessionId}
+          Session: {agentSessionId}
         </div>
       )}
       {chatWindow}
