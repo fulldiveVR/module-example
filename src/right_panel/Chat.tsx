@@ -75,6 +75,10 @@ async function streamSSE(
   }
 }
 
+// Add storage keys
+const STORAGE_CURRENT_KEY = "currentAgentSessionId";
+const STORAGE_OPEN_KEY = "openAgentSession";
+
 export default function Chat() {
   const [token, setToken] = useState<string | null | undefined>(undefined);
   const [models, setModels] = useState<Model[]>([]);
@@ -119,6 +123,95 @@ export default function Chat() {
       setToken(t);
     })();
   }, []);
+
+  // Sync current session id to localStorage for left panel highlight
+  useEffect(() => {
+    if (sessionId) {
+      try {
+        localStorage.setItem(STORAGE_CURRENT_KEY, sessionId);
+      } catch {}
+    }
+  }, [sessionId]);
+
+  // Handle external request to open specific session (sent via localStorage event)
+  useEffect(() => {
+    const fetchHistory = async (sid: string, agentId?: string) => {
+      if (!token) return;
+      try {
+        const resp = await fetch(`${WIZE_TEAMS_BASE_URL}/ai-agents/sessions/${sid}/messages`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (resp.ok) {
+          const data: any[] = await resp.json();
+          const parsed = data.map((m: any) => {
+            let content = "";
+            if (typeof m.message === "string") {
+              try {
+                const parsedMsg = JSON.parse(m.message);
+                if (typeof parsedMsg === "string") {
+                  content = parsedMsg;
+                } else if (parsedMsg && typeof parsedMsg.content === "string") {
+                  content = parsedMsg.content;
+                } else {
+                  content = m.message;
+                }
+              } catch {
+                content = m.message;
+              }
+            } else if (typeof m.content === "string") {
+              content = m.content;
+            } else if (m.content && typeof m.content.content === "string") {
+              content = m.content.content;
+            }
+            return {
+              id: m.id || `${m.sender}-${Date.now()}`,
+              sender: m.sender === "assistant" ? "assistant" : "user",
+              content,
+            } as Message;
+          });
+          setMessages(parsed);
+        } else {
+          // eslint-disable-next-line no-console
+          console.warn("Unable to fetch session messages", resp.status);
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("Error fetching history", err);
+      }
+    };
+
+    const handler = (e: StorageEvent) => {
+      if (e.key !== STORAGE_OPEN_KEY || !e.newValue) return;
+      try {
+        const payload = JSON.parse(e.newValue);
+        if (!payload || !payload.sessionId) return;
+
+        // Apply agent or model config depending on what we have
+        if (payload.agentId) {
+          setSelectedAgent(payload.agentId);
+          setSelectedModel("");
+        } else if (payload.model && payload.model.id) {
+          setSelectedModel(payload.model.id);
+          setSelectedAgent("");
+          if (typeof payload.model.temperature === "number") {
+            setTemperature(payload.model.temperature);
+          }
+        }
+
+        setSessionId(payload.sessionId);
+        // Reset current messages before loading history
+        setMessages([]);
+        fetchHistory(payload.sessionId, payload.agentId);
+      } catch {}
+    };
+
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   // Fetch models & agents once token available
   useEffect(() => {
