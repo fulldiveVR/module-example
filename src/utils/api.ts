@@ -1,0 +1,1 @@
+export const WIZE_TEAMS_BASE_URL = "https://wize-teams-api.aiwayz.com"; 
