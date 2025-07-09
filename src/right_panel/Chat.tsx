@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import PlusIcon from "../components/PlusIcon";
 import { CombinerRestClient } from "aiwize-combiner-core";
 import SendIcon from "../components/SendIcon";
 import { getToken } from "../utils/auth";
@@ -347,49 +348,57 @@ export default function Chat() {
       }}
     >
       <select
-        value={selectedAgent}
+        value={
+          selectedModel
+            ? `model:${selectedModel}`
+            : selectedAgent
+            ? `agent:${selectedAgent}`
+            : ""
+        }
         onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-          const nextAgent = e.target.value;
-          // Determine if we need to reset conversation.
-          const switchingFromModelFlow = Boolean(selectedModel);
-          const changingAgent = Boolean(selectedAgent) && selectedAgent !== nextAgent;
+          const val = e.target.value;
 
-          setSelectedAgent(nextAgent);
-          setSelectedModel(""); // leaving model flow
+          // Handle deselection
+          if (!val) {
+            setSelectedModel("");
+            setSelectedAgent("");
+            return;
+          }
 
-          if (switchingFromModelFlow || changingAgent) {
-            resetSession();
+          if (val.startsWith("model:")) {
+            const nextModel = val.slice(6);
+            const switchingFromAgentFlow = Boolean(selectedAgent);
+
+            setSelectedModel(nextModel);
+            setSelectedAgent(""); // leaving agent flow
+
+            if (switchingFromAgentFlow) {
+              resetSession();
+            }
+          } else if (val.startsWith("agent:")) {
+            const nextAgent = val.slice(6);
+            const switchingFromModelFlow = Boolean(selectedModel);
+            const changingAgent = Boolean(selectedAgent) && selectedAgent !== nextAgent;
+
+            setSelectedAgent(nextAgent);
+            setSelectedModel(""); // leaving model flow
+
+            if (switchingFromModelFlow || changingAgent) {
+              resetSession();
+            }
           }
         }}
         style={{ ...controlStyle, padding: 4 }}
       >
-        <option value="">Select agent</option>
-        {agents.map((a: Agent) => (
-          <option key={a.id} value={a.id}>
-            {a.meta?.name || a.id}
+        <option value="">Select model or agent</option>
+        {models.map((m: Model) => (
+          <option key={`model:${m.id}`} value={`model:${m.id}`}>
+            {m.id}
           </option>
         ))}
-      </select>
-
-      <select
-        value={selectedModel}
-        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-          const nextModel = e.target.value;
-          const switchingFromAgentFlow = Boolean(selectedAgent);
-
-          setSelectedModel(nextModel);
-          setSelectedAgent(""); // leaving agent flow
-
-          if (switchingFromAgentFlow) {
-            resetSession();
-          }
-        }}
-        style={{ ...controlStyle, padding: 4 }}
-      >
-        <option value="">Select model</option>
-        {models.map((m: Model) => (
-          <option key={m.id} value={m.id}>
-            {m.id}
+        {agents.map((a: Agent) => (
+          <option key={`agent:${a.id}`} value={`agent:${a.id}`}>
+            {a.meta?.name || a.id}
           </option>
         ))}
       </select>
@@ -407,12 +416,13 @@ export default function Chat() {
         />
       )}
 
-      <button
+      <div
         onClick={startNewSession}
-        style={{ ...controlStyle, padding: "4px 8px", marginLeft: "auto", cursor: "pointer" }}
+        title="New Session"
+        style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
       >
-        New Session
-      </button>
+        <PlusIcon size={16} />
+      </div>
     </div>
   );
 
@@ -422,8 +432,6 @@ export default function Chat() {
         flex: 1,
         overflowY: "auto",
         padding: "8px 4px",
-        background: "var(--neutral-background)",
-        border: "1px solid var(--neutral-outline)",
         borderRadius: 4,
       }}
     >
@@ -444,6 +452,7 @@ export default function Chat() {
               borderRadius: 6,
               maxWidth: "80%",
               whiteSpace: "pre-wrap",
+              fontSize: "12px"
             }}
           >
             {msg.content}
@@ -558,6 +567,18 @@ export default function Chat() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
       {controlRow}
+      {sessionId && (
+        <div
+          style={{
+            fontSize: 10,
+            color: "var(--neutral-gray)",
+            margin: "0 0 4px 0",
+            textAlign: "right",
+          }}
+        >
+          Session: {sessionId}
+        </div>
+      )}
       {chatWindow}
       {inputRow}
     </div>
