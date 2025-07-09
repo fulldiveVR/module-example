@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import PlusIcon from "../components/PlusIcon";
 import { CombinerRestClient, CombinerWebSocketClient } from "aiwize-combiner-core";
 import SendIcon from "../components/SendIcon";
+import PageContentIcon from "../components/PageContentIcon";
+import PageInfoIcon from "../components/PageInfoIcon";
+import PageScreenshotIcon from "../components/PageScreenshotIcon";
 import { getToken } from "../utils/auth";
 import { WIZE_TEAMS_BASE_URL } from "../utils/api";
 import { reportError } from "../utils/errorReporter";
@@ -98,9 +101,76 @@ export default function Chat() {
   const [input, setInput] = useState<string>("");
   // Add debug logging for session id changes
 
-  const [textareaHeight, setTextareaHeight] = useState<number>(70);
+  const [textareaHeight, setTextareaHeight] = useState<number>(120);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Helper to insert text at the current cursor position inside the textarea
+  const insertAtCursor = (text: string) => {
+    if (!inputRef.current) return;
+    const el = inputRef.current;
+    const start = el.selectionStart ?? input.length;
+    const end = el.selectionEnd ?? input.length;
+    const newVal = input.slice(0, start) + text + input.slice(end);
+    setInput(newVal);
+    // Restore focus and cursor position after state update
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const pos = start + text.length;
+        inputRef.current.selectionStart = pos;
+        inputRef.current.selectionEnd = pos;
+      }
+    }, 0);
+  };
+
+  // Insert <page-content>...</page-content> at cursor
+  const handleInsertPageContent = async () => {
+    console.log("handleInsertPageContent");
+    let content = "";
+    try {
+      const core: any = await import("aiwize-combiner-core");
+      content = await core.getPageContent();
+      console.log("handleInsertPageContent", content);
+    } catch {
+      console.log("handleInsertPageContent error");
+      /* ignore errors – will fallback to mock */
+    }
+    if (!content) content = "Mock page content";
+    insertAtCursor(`<page-content>${content}</page-content>`);
+  };
+
+  // Insert <page-info>...</page-info> at cursor
+  const handleInsertPageInfo = async () => {
+    let info = "";
+    console.log("handleInsertPageInfo");
+    try {
+      const core: any = await import("aiwize-combiner-core");
+      info = await core.getPageInfo();
+      console.log("handleInsertPageInfo", info);
+    } catch {
+      console.log("handleInsertPageInfo error");
+      /* ignore errors – will fallback to mock */
+    }
+    if (!info) info = "Mock page info";
+    insertAtCursor(`<page-info>${info}</page-info>`);
+  };
+
+  // Insert <page-screenshots>...</page-screenshots> at cursor
+  const handleInsertPageScreenshots = async () => {
+    let shots: string[] = [];
+    console.log("handleInsertPageScreenshots");
+    try {
+      const core: any = await import("aiwize-combiner-core");
+      shots = await core.getPageScreenshots();
+      console.log("handleInsertPageScreenshots", shots);
+    } catch {
+      console.log("handleInsertPageScreenshots error");
+      /* ignore errors – will fallback to mock */
+    }
+    if (!shots || !shots.length) shots = ["mock-base64"];
+    insertAtCursor(`<page-screenshots>${shots.join(",")}</page-screenshots>`);
+  };
 
   // Scroll to bottom when messages update
   useEffect(() => {
@@ -465,8 +535,7 @@ export default function Chat() {
   const controlStyle: React.CSSProperties = React.useMemo(() => ({
     backgroundColor: "var(--neutral-background)",
     color: "var(--text-primary)",
-    border: "1px solid var(--neutral-outline)",
-    borderRadius: 4,
+    borderTop: "1px solid var(--neutral-outline)",
   }), []);
 
   // Inline JSX blocks to keep DOM elements stable and avoid remounting
@@ -479,6 +548,7 @@ export default function Chat() {
         gap: 8,
         alignItems: "center",
         marginBottom: 8,
+        overflowX: "hidden", // avoid creating horizontal scrollbars
       }}
     >
       <select
@@ -522,7 +592,14 @@ export default function Chat() {
             }
           }
         }}
-        style={{ ...controlStyle, padding: 4 }}
+        style={{
+          ...controlStyle,
+          padding: 4,
+          flex: "1 1 200px", // let it shrink and wrap as needed
+          minWidth: 0, // allow shrinking below intrinsic width
+          maxWidth: "100%", // never exceed container width
+          boxSizing: "border-box",
+        }}
       >
         <option value="">Select model or agent</option>
         {models.map((m: Model) => (
@@ -545,18 +622,12 @@ export default function Chat() {
           step={0.1}
           value={temperature}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemperature(Number(e.target.value))}
-          style={{ ...controlStyle, width: 60, padding: 2 }}
+          style={{ ...controlStyle, width: 60, padding: 2, fontSize: 12 }}
           title="Temperature"
         />
       )}
 
-      <div
-        onClick={startNewSession}
-        title="New Session"
-        style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
-      >
-        <PlusIcon size={16} />
-      </div>
+      {/* removed session + page controls (moved to textarea) */}
     </div>
   );
 
@@ -624,7 +695,7 @@ export default function Chat() {
         <textarea
           ref={inputRef}
           value={input}
-          rows={3}
+          rows={4}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInput(e.target.value)}
           onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
             if (e.key === "Enter") {
@@ -644,9 +715,9 @@ export default function Chat() {
             padding: 8,
             paddingRight: 36,
             resize: "none",
-            fontSize: "14px",
+            fontSize: "12px",
             lineHeight: "1.4",
-            minHeight: 70,
+            minHeight: 90,
           }}
         />
         {/* custom drag handle */}
@@ -675,7 +746,7 @@ export default function Chat() {
           style={{
             position: "absolute",
             bottom: 4,
-            right: 4,
+            right: 1,
             width: 28,
             height: 28,
             display: "flex",
@@ -690,6 +761,98 @@ export default function Chat() {
         >
           <SendIcon />
         </button>
+
+        {/* new session (plus) button */}
+        <button
+          onClick={startNewSession}
+          title="New Session"
+          style={{
+            position: "absolute",
+            top: 20,
+            right: 1,
+            width: 22,
+            height: 22,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            backgroundColor: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--primary)",
+          }}
+        >
+          <PlusIcon size={11} />
+        </button>
+
+        {/* page content button */}
+        <button
+          onClick={handleInsertPageContent}
+          title="Insert page content"
+          style={{
+            position: "absolute",
+            top: 42,
+            right: 1,
+            width: 22,
+            height: 22,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            backgroundColor: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--primary)",
+          }}
+        >
+          <PageContentIcon size={11} />
+        </button>
+
+        {/* page info button */}
+        <button
+          onClick={handleInsertPageInfo}
+          title="Insert page info"
+          style={{
+            position: "absolute",
+            top:64,
+            right: 1,
+            width: 22,
+            height: 22,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            backgroundColor: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--primary)",
+          }}
+        >
+          <PageInfoIcon size={12} />
+        </button>
+
+        {/* page screenshots button */}
+        <button
+          onClick={handleInsertPageScreenshots}
+          title="Insert page screenshots"
+          style={{
+            position: "absolute",
+            top: 86,
+            right: 1,
+            width: 22,
+            height: 22,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            backgroundColor: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "var(--primary)",
+          }}
+        >
+          <PageScreenshotIcon size={12} />
+        </button>
       </div>
     </div>
   );
@@ -699,7 +862,15 @@ export default function Chat() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        width: "100%",
+        overflowX: "hidden", // ensure no horizontal scroll for the entire panel
+      }}
+    >
       {controlRow}
       {agentSessionId && (
         <div
