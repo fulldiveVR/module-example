@@ -6,8 +6,9 @@ import LightIcon from "@/assets/theme_light.svg";
 import DarkIcon from "@/assets/theme_dark.svg";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { logout } from "../utils/auth";
+import { ErrorProvider } from "../context/ErrorContext";
 
-function App() {
+function PanelApp() {
   const loggedIn = useLoggedIn();
   const { theme, toggleTheme } = useTheme("left");
   const { user, loading } = useCurrentUser();
@@ -102,4 +103,10 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <ErrorProvider>
+      <PanelApp />
+    </ErrorProvider>
+  );
+}
