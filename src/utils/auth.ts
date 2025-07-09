@@ -37,4 +37,26 @@ export async function getToken(): Promise<string | null> {
     // Likely file doesn't exist yet or network issue – treat as no token
     return null;
   }
+}
+
+/**
+ * Removes the stored authentication token (if any) effectively logging the user out.
+ */
+export async function deleteToken(): Promise<void> {
+  try {
+    // CombinerRestClient currently does not expose a filesystem delete operation.
+    // Overwrite the token file with an empty string so that subsequent reads
+    // return null (treated as logged-out).
+    await client.writeFile(AIWIZE_TOKEN_PATH, "", "utf-8");
+  } catch (err) {
+    console.error("Error wiping token:", err);
+    // Silently ignore errors – e.g., file not found or network issues
+  }
+}
+
+/**
+ * Logs the current user out by deleting the token file and optionally performing additional cleanup.
+ */
+export async function logout(): Promise<void> {
+  await deleteToken();
 } 

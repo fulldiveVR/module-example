@@ -5,7 +5,7 @@ import { useTheme } from "../hooks/useTheme";
 
 function App() {
   const loggedIn = useLoggedIn();
-  const { theme, toggleTheme } = useTheme("right");
+  useTheme("right");
   ensureThemeStyles();
 
   const containerStyle: React.CSSProperties = {
@@ -26,8 +26,9 @@ function App() {
 
   return (
     <div style={{ ...containerStyle, position: "relative" }}>
-      {/* toggle removed in right panel */}
+      {/* Content of right panel */}
       Hello World (Right Panel)
+
     </div>
   );
 }
