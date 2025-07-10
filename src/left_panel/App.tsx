@@ -8,6 +8,7 @@ import { useCurrentUser } from "../hooks/useCurrentUser";
 import { logout } from "../utils/auth";
 import { ErrorProvider } from "../context/ErrorContext";
 import SessionList from "./SessionList";
+import DocumentList from "./DocumentList";
 
 function PanelApp() {
   const loggedIn = useLoggedIn();
@@ -57,9 +58,17 @@ function PanelApp() {
         </button>
       </div>
 
-      {/* Sessions list */}
-      <div style={{ height: "50vh", overflow: "hidden" }}>
+      {/* Sessions & Documents lists */}
+      <div
+        style={{
+          flex: 1,
+          overflow: "hidden", // no scroll on wrapper
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         <SessionList />
+        <DocumentList />
       </div>
 
       {/* Bottom-left user email & logout */}

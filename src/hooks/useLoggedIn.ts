@@ -12,6 +12,7 @@ export function useLoggedIn(): boolean | undefined {
     let isMounted = true;
     (async () => {
       const token = await getToken();
+      console.log("token", token);
       if (!isMounted) return;
       setLoggedIn(token !== null);
     })();

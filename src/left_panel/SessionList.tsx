@@ -31,6 +31,9 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
 
+  // Collapsible list state – closed by default
+  const [expanded, setExpanded] = useState(false);
+
   // WebSocket ref (persist across renders)
   const wsRef = useRef<CombinerWebSocketClient | null>(null);
 
@@ -132,8 +135,8 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
     <div
       style={{
         width,
-        height: "100%",
-        overflowY: "auto",
+        maxHeight: "60%",
+        overflowY: expanded ? "auto" : "hidden",
         padding: 8,
         boxSizing: "border-box",
         backgroundColor: "var(--color-background)",
@@ -141,34 +144,53 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
         borderRight: "1px solid var(--neutral-outline)",
       }}
     >
-      <h3 style={{ marginTop: 0, marginBottom: 8, fontSize: 14 }}>Sessions</h3>
-      {sessions.map((s) => {
-        const isActive = s.id === currentId;
-        const trimmedName = s.meta?.name?.trim() || "";
-        const label = s.id + " " + trimmedName;
-        return (
-          <div
-            key={s.id}
-            onClick={() => openSession(s)}
-            style={{
-              padding: "6px 8px",
-              borderRadius: 4,
-              cursor: "pointer",
-              backgroundColor: isActive ? "var(--primary-transparent-light)" : "transparent",
-              fontWeight: isActive ? 600 : 400,
-              fontSize: 12,
-              marginBottom: 4,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {label}
-          </div>
-        );
-      })}
-      {sessions.length === 0 && (
-        <div style={{ fontSize: 12, color: "var(--neutral-gray)" }}>No sessions</div>
+      <div
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          cursor: "pointer",
+          marginBottom: 4,
+        }}
+      >
+        <span style={{ fontSize: 12, marginRight: 4 }}>
+          {expanded ? "▼" : "▶"}
+        </span>
+        <h3 style={{ margin: 0, fontSize: 14 }}>Sessions</h3>
+      </div>
+      {expanded && (
+        <>
+          {sessions.map((s) => {
+            const isActive = s.id === currentId;
+            const trimmedName = s.meta?.name?.trim() || "";
+            const label = s.id + " " + trimmedName;
+            return (
+              <div
+                key={s.id}
+                onClick={() => openSession(s)}
+                style={{
+                  padding: "6px 8px",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  backgroundColor: isActive ? "var(--primary-transparent-light)" : "transparent",
+                  fontWeight: isActive ? 600 : 400,
+                  fontSize: 12,
+                  marginBottom: 4,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {label}
+              </div>
+            );
+          })}
+          {sessions.length === 0 && (
+            <div style={{ fontSize: 12, color: "var(--neutral-gray)" }}>
+              No sessions
+            </div>
+          )}
+        </>
       )}
     </div>
   );

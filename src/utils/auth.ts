@@ -15,6 +15,8 @@ const client = new CombinerRestClient({ moduleId: manifest.id });
 export async function getToken(): Promise<string | null> {
   try {
     const content = await client.readFile(AIWIZE_TOKEN_PATH, "utf-8");
+    console.log("content", content);
+    console.log("AIWIZE_TOKEN_PATH", AIWIZE_TOKEN_PATH);
     // When the file does not exist (often represented as null/undefined or 404), treat it as
     // "not logged in" rather than a fatal error. We only surface an error when the server is
     // completely unreachable. Returning null here is enough for callers to detect logged-out
