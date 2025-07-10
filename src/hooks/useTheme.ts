@@ -5,7 +5,7 @@ import { reportError } from "../utils/errorReporter";
 export type Theme = "light" | "dark";
 
 const THEME_KEY = "aiwize-theme";
-const MODULE_ID = "module-example-aiwize-simple"; // keep in sync with manifest.json
+const MODULE_ID = "simple-docs-with-chat"; // keep in sync with manifest.json
 
 export function useTheme(panelName: string) {
 

@@ -60,7 +60,6 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
 
   const openDocument = (docId: string) => {
     backend.openLink(`${WIZE_TEAMS_UI_BASE_URL}/documents?documentId=${docId}`);
-    console.log("openDocument", `${WIZE_TEAMS_UI_BASE_URL}/documents?documentId=${docId}`);
   };
 
   return (

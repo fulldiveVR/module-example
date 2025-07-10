@@ -47,7 +47,7 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
 
   // Establish WS connection when component mounts
   useEffect(() => {
-    const ws = new CombinerWebSocketClient({ moduleId: "module-example-aiwize-chat", panel: "left" });
+    const ws = new CombinerWebSocketClient({ moduleId: "simple-docs-with-chat", panel: "left" });
     wsRef.current = ws;
 
     const handleJson = (msg: any) => {

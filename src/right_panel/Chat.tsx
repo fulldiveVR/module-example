@@ -31,6 +31,13 @@ interface Message {
   content: string;
 }
 
+// NEW: SimpleDocument interface for user's uploaded documents
+interface SimpleDocument {
+  id: string;
+  title: string;
+  content: string;
+}
+
 // Lightweight SSE parser based on fetch + ReadableStream
 async function streamSSE(
   url: string,
@@ -92,6 +99,10 @@ export default function Chat() {
   const [agentSessionId, setAgentSessionId] = useState<string | null>(null);
   const [msgSessionId, setMsgSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  // NEW: state for documents & picker
+  const [docs, setDocs] = useState<SimpleDocument[]>([]);
+  const [showDocPicker, setShowDocPicker] = useState<boolean>(false);
+  const [docContentMap, setDocContentMap] = useState<Record<string, string>>({});
 
   // Combiner REST client (persisted via ref to avoid re-instantiation)
   const combinerRef = useRef<CombinerRestClient | null>(null);
@@ -127,12 +138,11 @@ export default function Chat() {
 
   // Insert <page-content>...</page-content> at cursor
   const handleInsertPageContent = async () => {
-    console.log("handleInsertPageContent");
     let content = "";
     try {
       content = await browserBackend.getPageContent();
     } catch (e) {
-      console.log("handleInsertPageContent error", e);
+      console.error("handleInsertPageContent error", e);
       /* ignore errors – will fallback to mock */
     }
     if (!content || !content.length) content = "Mock page content";
@@ -145,7 +155,7 @@ export default function Chat() {
     try {
       info = await browserBackend.getPageInfo();
     } catch (e) {
-      console.log("handleInsertPageInfo error", e);
+      console.error("handleInsertPageInfo error", e);
       /* ignore errors – will fallback to mock */
     }
     if (!info || !info.length) info = ["Mock page info"];
@@ -158,7 +168,7 @@ export default function Chat() {
     try {
       shots = await browserBackend.getPageScreenshots();
     } catch (e) {
-      console.log("handleInsertPageScreenshots error", e);
+      console.error("handleInsertPageScreenshots error", e);
       /* ignore errors – will fallback to mock */
     }
     if (!shots || !shots.length) shots = ["mock-base64"];
@@ -185,7 +195,7 @@ export default function Chat() {
 
   // Establish WS connection once on mount
   useEffect(() => {
-    const ws = new CombinerWebSocketClient({ moduleId: "module-example-aiwize-chat", panel: "right" });
+    const ws = new CombinerWebSocketClient({ moduleId: "simple-docs-with-chat", panel: "right" });
     wsRef.current = ws;
 
     const processMessageObj = (msg: any) => {
@@ -302,6 +312,29 @@ export default function Chat() {
     })();
   }, [token, msgSessionId]);
 
+  // Fetch user's simple documents when token is available
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      try {
+        const resp = await fetch(`${WIZE_TEAMS_BASE_URL}/simple-documents?skip=0&limit=100`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        if (!resp.ok) {
+          console.warn("[Chat] Failed to load documents", resp.status);
+          return;
+        }
+        const data: SimpleDocument[] = await resp.json();
+        setDocs(data);
+      } catch (err) {
+        console.error("[Chat] Error fetching documents", err);
+      }
+    })();
+  }, [token]);
+
   // Fallback when no agent/model supplied – default to first available model once we have the list
   useEffect(() => {
     if (!agentSessionId && !msgSessionId) return; // only care when a session is active
@@ -348,7 +381,7 @@ export default function Chat() {
 
   // Initialize Combiner REST client & load persisted chat state (once)
   useEffect(() => {
-    combinerRef.current = new CombinerRestClient({ moduleId: "module-example-aiwize-chat" });
+    combinerRef.current = new CombinerRestClient({ moduleId: "simple-docs-with-chat" });
     (async () => {
       try {
         // fetch existing documents – pick the most recently updated (last)
@@ -418,6 +451,77 @@ export default function Chat() {
     resetSession();
   };
 
+  // Helper: Expand @document_title placeholders with full content tags
+  const expandDocumentPlaceholders = async (text: string): Promise<string> => {
+    // Quick exit if there is no placeholder indicator.
+    if (!text.includes("@")) return text;
+
+    // Clone current cache so we can update it locally first.
+    const updatedMap: Record<string, string> = { ...docContentMap };
+
+    // Ensure we have content cached for every document that is referenced in the text.
+    const cachingTasks = docs.map(async (doc) => {
+      const placeholder = `@${doc.title}`;
+      if (!text.includes(placeholder)) return; // not referenced
+
+      // Already cached → nothing to do.
+      if (updatedMap[doc.title]) return;
+
+      // Cache the document content.
+      updatedMap[doc.title] = doc.content;
+    });
+
+    await Promise.all(cachingTasks);
+
+    // Persist the (possibly) updated cache.
+    setDocContentMap(updatedMap);
+
+    // Replace placeholders with full content tags.
+    let result = text;
+    Object.entries(updatedMap).forEach(([title, content]) => {
+      if (!content) return;
+      const placeholder = `@${title}`;
+      if (!result.includes(placeholder)) return;
+
+      const replacement = `<${title}> {{${content}}}</${title}>`;
+      result = result.split(placeholder).join(replacement);
+    });
+
+    return result;
+  };
+
+  // NEW: handler when user selects a document from picker
+  const handleSelectDocument = async (doc: SimpleDocument) => {
+    if (!inputRef.current) return;
+    const el = inputRef.current;
+    const cursorPos = el.selectionStart ?? input.length;
+
+    // If character right before cursor is '@', replace it, otherwise just insert.
+    const hasTrailingAt = cursorPos > 0 && input[cursorPos - 1] === "@";
+    const before = hasTrailingAt ? input.slice(0, cursorPos - 1) : input.slice(0, cursorPos);
+    const after = input.slice(cursorPos);
+    const newText = `${before}@${doc.title}${after}`;
+    setInput(newText);
+
+    // update cursor position after state update
+    setTimeout(() => {
+      if (inputRef.current) {
+        const newPos = before.length + doc.title.length + 1; // 1 for @
+        inputRef.current.selectionStart = newPos;
+        inputRef.current.selectionEnd = newPos;
+        inputRef.current.focus();
+      }
+    }, 0);
+
+    setShowDocPicker(false);
+
+    // Cache content if not already present
+    if (!docContentMap[doc.title]) {
+      const content = doc.content;
+      setDocContentMap((prev) => ({ ...prev, [doc.title]: content }));
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
     if (!token) {
@@ -446,11 +550,23 @@ export default function Chat() {
     const onEvent = (obj: any): void => {
       // 1) streaming delta
       if (obj.messageDelta !== undefined) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId ? { ...m, content: m.content + String(obj.messageDelta) } : m,
-          ),
-        );
+        // Update assistant message with streaming delta. If the placeholder has been
+        // removed (e.g. after a session history reload that arrived mid-stream),
+        // recreate it so the user can still see the assistant response.
+        setMessages((prev) => {
+          const existing = prev.find((m) => m.id === assistantId);
+          if (existing) {
+            return prev.map((m) =>
+              m.id === assistantId ? { ...m, content: m.content + String(obj.messageDelta) } : m,
+            );
+          }
+
+          // Placeholder missing – create a new assistant message starting with the delta.
+          return [
+            ...prev,
+            { id: assistantId, sender: "assistant", content: String(obj.messageDelta) },
+          ];
+        });
         return;
       }
 
@@ -499,12 +615,15 @@ export default function Chat() {
     };
 
     try {
+      // Expand document placeholders before sending
+      const expandedInput = await expandDocumentPlaceholders(userMsg.content);
+
       if (selectedAgent) {
         // agent flow
         const url = agentSessionId
           ? `${WIZE_TEAMS_BASE_URL}/ai-agent-continue-text/${agentSessionId}`
           : `${WIZE_TEAMS_BASE_URL}/ai-agent-run-text/${selectedAgent}`;
-        const body = { message: userMsg.content };
+        const body = { message: expandedInput };
         await streamSSE(url, body, headers, onEvent);
       } else if (selectedModel) {
         // model flow
@@ -513,9 +632,10 @@ export default function Chat() {
           ? `${WIZE_TEAMS_BASE_URL}/ai-agent-continue-by-model/${agentSessionId}`
           : `${WIZE_TEAMS_BASE_URL}/ai-agent-run-by-model`;
         const body: any = {
-          message: userMsg.content,
+          message: expandedInput,
           model: { id: selectedModel, temperature },
         };
+        console.log("[Chat] Calling generation route", body.message);
         await streamSSE(url, body, headers, onEvent);
       }
     } catch (err: any) {
@@ -691,6 +811,11 @@ export default function Chat() {
           rows={4}
           onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInput(e.target.value)}
           onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+            if (e.key === "@") {
+              setShowDocPicker(true);
+            } else if (e.key === "Escape") {
+              setShowDocPicker(false);
+            }
             if (e.key === "Enter") {
               if (e.shiftKey) {
                 // allow newline
@@ -846,6 +971,45 @@ export default function Chat() {
         >
           <PageScreenshotIcon size={12} />
         </button>
+
+        {/* NEW: document picker popover */}
+        {showDocPicker && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: textareaHeight + 10,
+              right: 1,
+              width: 220,
+              maxHeight: 220,
+              overflowY: "auto",
+              backgroundColor: "var(--color-background)",
+              border: "1px solid var(--neutral-outline)",
+              borderRadius: 4,
+              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+              zIndex: 1000,
+            }}
+          >
+            {docs.map((d) => (
+              <div
+                key={d.id}
+                onClick={() => handleSelectDocument(d)}
+                style={{
+                  padding: "6px 8px",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {d.title || d.id}
+              </div>
+            ))}
+            {docs.length === 0 && (
+              <div style={{ padding: 8, fontSize: 12, color: "var(--neutral-gray)" }}>No documents</div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
