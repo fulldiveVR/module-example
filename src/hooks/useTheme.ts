@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CombinerWebSocketClient } from "aiwize-combiner-core";
 import { reportError } from "../utils/errorReporter";
+import { readThemeFromDB, writeThemeToDB } from "../utils/themeStorage";
 
 export type Theme = "light" | "dark";
 
@@ -19,6 +20,8 @@ export function useTheme(panelName: string) {
     }
     return initial;
   });
+
+  const [dbReady, setDbReady] = useState(false);
 
   // --- WebSocket setup for cross-panel syncing ---------------------------------
   const wsRef = useRef<CombinerWebSocketClient | null>(null);
@@ -95,6 +98,23 @@ export function useTheme(panelName: string) {
     };
   }, [panelName]);
 
+  // After initial mount – load persisted theme from DB -----------------------
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const stored = await readThemeFromDB();
+      if (!cancelled && stored) {
+        if (stored !== theme) {
+          setTheme(stored);
+        }
+      }
+      if (!cancelled) setDbReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // -----------------------------------------------------------------------------
 
   // Apply theme to document element and persist
@@ -127,6 +147,10 @@ export function useTheme(panelName: string) {
   const toggleTheme = useCallback(() => {
     setTheme((prev) => {
       const next = prev === "light" ? "dark" : "light";
+      // Persist to DB only when remote has been read (avoid duplicate writes on init)
+      if (dbReady) {
+        writeThemeToDB(next).catch(() => {/* error surfaced inside util */});
+      }
       const client = wsRef.current;
       if (client) {
         try {
@@ -135,7 +159,7 @@ export function useTheme(panelName: string) {
       }
       return next;
     });
-  }, []);
+  }, [dbReady]);
 
   return {
     theme,
