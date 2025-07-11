@@ -136,8 +136,11 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
     <div
       style={{
         width,
-        maxHeight: "60%",
+        flex: 1,
         overflowY: expanded ? "auto" : "hidden",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
         padding: 8,
         boxSizing: "border-box",
         backgroundColor: "var(--color-background)",
@@ -152,6 +155,10 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
           alignItems: "center",
           cursor: "pointer",
           marginBottom: 4,
+          position: "sticky",
+          top: 0,
+          backgroundColor: "var(--color-background)",
+          zIndex: 2,
         }}
       >
         <span style={{ fontSize: 12, marginRight: 4 }}>
@@ -170,16 +177,17 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
                 key={s.id}
                 onClick={() => openSession(s)}
                 style={{
-                  padding: "6px 8px",
-                  borderRadius: 4,
+                  padding: "8px 10px",
+                  borderRadius: 6,
                   cursor: "pointer",
+                  transition: "background-color 0.2s ease",
                   backgroundColor: isActive ? "var(--primary-transparent-light)" : "transparent",
                   fontWeight: isActive ? 600 : 400,
-                  fontSize: 12,
+                  fontSize: 13,
                   marginBottom: 4,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
+                  whiteSpace: "normal",
+                  wordBreak: "break-word",
+                  lineHeight: 1.4,
                 }}
               >
                 {label}

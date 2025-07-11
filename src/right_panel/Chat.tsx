@@ -668,99 +668,129 @@ export default function Chat() {
   const controlStyle: React.CSSProperties = React.useMemo(() => ({
     backgroundColor: "var(--neutral-background)",
     color: "var(--text-primary)",
-    borderTop: "1px solid var(--neutral-outline)",
+    margin: 4,
+    border: "1px solid var(--neutral-outline)",
+    borderRadius: 6,
   }), []);
 
   // Inline JSX blocks to keep DOM elements stable and avoid remounting
 
-  const controlRow = (
+  const headerRow: React.ReactNode = (
     <div
       style={{
+        position: "relative",
         display: "flex",
-        flexWrap: "wrap", // allow controls to flow to next line on small widths
-        gap: 8,
+        height: 60,
         alignItems: "center",
-        marginBottom: 8,
+        justifyContent: "space-between",
+        flexWrap: "wrap", // allow second row for session label
+        borderBottom: "1px solid var(--neutral-outline)",
+        background: "linear-gradient(90deg, var(--tile-bg) 0%, var(--neutral-light-gray-hover) 100%)",
+        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.06)",
+        backdropFilter: "blur(6px)",
         overflowX: "hidden", // avoid creating horizontal scrollbars
       }}
     >
-      <select
-        value={
-          selectedModel
-            ? `model:${selectedModel}`
-            : selectedAgent
-            ? `agent:${selectedAgent}`
-            : ""
-        }
-        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-          const val = e.target.value;
-
-          // Handle deselection
-          if (!val) {
-            setSelectedModel("");
-            setSelectedAgent("");
-            return;
+      <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0, flexWrap: "wrap" }}>
+        <select
+          value={
+            selectedModel
+              ? `model:${selectedModel}`
+              : selectedAgent
+              ? `agent:${selectedAgent}`
+              : ""
           }
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+            const val = e.target.value;
 
-          if (val.startsWith("model:")) {
-            const nextModel = val.slice(6);
-            const switchingFromAgentFlow = Boolean(selectedAgent);
-
-            setSelectedModel(nextModel);
-            setSelectedAgent(""); // leaving agent flow
-
-            if (switchingFromAgentFlow) {
-              resetSession();
+            // Handle deselection
+            if (!val) {
+              setSelectedModel("");
+              setSelectedAgent("");
+              return;
             }
-          } else if (val.startsWith("agent:")) {
-            const nextAgent = val.slice(6);
-            const switchingFromModelFlow = Boolean(selectedModel);
-            const changingAgent = Boolean(selectedAgent) && selectedAgent !== nextAgent;
 
-            setSelectedAgent(nextAgent);
-            setSelectedModel(""); // leaving model flow
+            if (val.startsWith("model:")) {
+              const nextModel = val.slice(6);
+              const switchingFromAgentFlow = Boolean(selectedAgent);
 
-            if (switchingFromModelFlow || changingAgent) {
-              resetSession();
+              setSelectedModel(nextModel);
+              setSelectedAgent(""); // leaving agent flow
+
+              if (switchingFromAgentFlow) {
+                resetSession();
+              }
+            } else if (val.startsWith("agent:")) {
+              const nextAgent = val.slice(6);
+              const switchingFromModelFlow = Boolean(selectedModel);
+              const changingAgent = Boolean(selectedAgent) && selectedAgent !== nextAgent;
+
+              setSelectedAgent(nextAgent);
+              setSelectedModel(""); // leaving model flow
+
+              if (switchingFromModelFlow || changingAgent) {
+                resetSession();
+              }
             }
-          }
-        }}
-        style={{
-          ...controlStyle,
-          padding: 4,
-          flex: "1 1 200px", // let it shrink and wrap as needed
-          minWidth: 0, // allow shrinking below intrinsic width
-          maxWidth: "100%", // never exceed container width
-          boxSizing: "border-box",
-        }}
-      >
-        <option value="">Select model or agent</option>
-        {models.map((m: Model) => (
-          <option key={`model:${m.id}`} value={`model:${m.id}`}>
-            {m.id}
-          </option>
-        ))}
-        {agents.map((a: Agent) => (
-          <option key={`agent:${a.id}`} value={`agent:${a.id}`}>
-            {a.meta?.name || a.id}
-          </option>
-        ))}
-      </select>
+          }}
+          style={{
+            ...controlStyle,
+            height: 28,
+            padding: "2px 8px",
+            flex: "1 1 200px", // let it shrink and wrap as needed
+            minWidth: 0, // allow shrinking below intrinsic width
+            maxWidth: "100%", // never exceed container width
+            boxSizing: "border-box",
+          }}
+        >
+          <option value="">Select model or agent</option>
+          {models.map((m: Model) => (
+            <option key={`model:${m.id}`} value={`model:${m.id}`}>
+              {m.id}
+            </option>
+          ))}
+          {agents.map((a: Agent) => (
+            <option key={`agent:${a.id}`} value={`agent:${a.id}`}>
+              {a.meta?.name || a.id}
+            </option>
+          ))}
+        </select>
 
-      {selectedModel && (
-        <input
-          type="number"
-          min={0}
-          max={2}
-          step={0.1}
-          value={temperature}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemperature(Number(e.target.value))}
-          style={{ ...controlStyle, width: 60, padding: 2, fontSize: 12 }}
-          title="Temperature"
-        />
-      )}
+        {selectedModel && (
+          <input
+            type="number"
+            min={0}
+            max={2}
+            step={0.1}
+            value={temperature}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemperature(Number(e.target.value))}
+            style={{
+              ...controlStyle,
+              width: 70,
+              height: 28,
+              padding: "2px 6px",
+              fontSize: 13,
+              boxSizing: "border-box",
+            }}
+            title="Temperature"
+          />
+        )}
 
-      {/* removed session + page controls (moved to textarea) */}
+        {agentSessionId && (
+          <span
+            style={{
+              fontSize: 10,
+              color: "var(--neutral-gray)",
+              marginTop: 2,
+              textAlign: "end",
+              width: "100%", // forces new line below selector row
+              whiteSpace: "nowrap",
+            }}
+          >
+            Session: {agentSessionId}
+          </span>
+        )}
+      </div>
     </div>
   );
 
@@ -769,8 +799,8 @@ export default function Chat() {
       style={{
         flex: 1,
         overflowY: "auto",
-        padding: "8px 4px",
-        borderRadius: 4,
+        padding: "16px 8px",
+        borderRadius: 8,
       }}
     >
       {messages.map((msg: Message) => (
@@ -785,12 +815,15 @@ export default function Chat() {
             style={{
               display: "inline-block",
               background:
-                msg.sender === "user" ? "var(--primary-transparent-light)" : "var(--secondary-transparent-light)",
-              padding: "6px 10px",
-              borderRadius: 6,
+                msg.sender === "user" ? "var(--primary)" : "var(--neutral-light-gray-hover)",
+              color: msg.sender === "user" ? "#fff" : "var(--text-primary)",
+              padding: "8px 12px",
+              borderRadius: 12,
               maxWidth: "80%",
               whiteSpace: "pre-wrap",
-              fontSize: "12px"
+              fontSize: "13px",
+              lineHeight: "1.4",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
             }}
           >
             {formatMessageContent(msg.content)}
@@ -847,15 +880,18 @@ export default function Chat() {
           }}
           placeholder="Type a message..."
           style={{
-            ...controlStyle,
             width: "100%",
             height: textareaHeight,
-            padding: 8,
+            padding: 10,
             paddingRight: 36,
             resize: "none",
-            fontSize: "12px",
+            fontSize: "13px",
             lineHeight: "1.4",
-            minHeight: 90,
+            minHeight: 92,
+            border: "1px solid var(--neutral-outline)",
+            backgroundColor: "var(--tile-bg)",
+            color: "var(--text-primary)",
+            margin: 0,
           }}
         />
         {/* custom drag handle */}
@@ -863,7 +899,7 @@ export default function Chat() {
           onMouseDown={handleDragMouseDown}
           style={{
             position: "absolute",
-            top: 4,
+            top: 8,
             right: 4,
             width: 14,
             height: 14,
@@ -1048,19 +1084,7 @@ export default function Chat() {
         overflowX: "hidden", // ensure no horizontal scroll for the entire panel
       }}
     >
-      {controlRow}
-      {agentSessionId && (
-        <div
-          style={{
-            fontSize: 10,
-            color: "var(--neutral-gray)",
-            margin: "0 0 4px 0",
-            textAlign: "right",
-          }}
-        >
-          Session: {agentSessionId}
-        </div>
-      )}
+      {headerRow}
       {chatWindow}
       {inputRow}
     </div>

@@ -36,11 +36,17 @@ function PanelApp() {
     <div style={{ ...containerStyle, position: "relative" }}>
       {/* Header with theme toggle */}
       <div style={{
-        padding: "12px 16px",
+        height: 60,
+        padding: "0 20px",
         display: "flex",
-        justifyContent: "flex-end",
+        justifyContent: "space-between",
+        alignItems: "center",
         borderBottom: "1px solid var(--neutral-outline)",
+        background: "linear-gradient(90deg, var(--tile-bg) 0%, var(--neutral-light-gray-hover) 100%)",
+        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.06)",
+        backdropFilter: "blur(6px)",
       }}>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>AI Wize</h2>
         <button
           onClick={toggleTheme}
           style={{
@@ -53,7 +59,7 @@ function PanelApp() {
           <img
             src={theme === "light" ? DarkIcon : LightIcon}
             alt="Toggle theme"
-            style={{ width: 24, height: 24 }}
+            style={{ width: 20, height: 20 }}
           />
         </button>
       </div>
@@ -65,6 +71,8 @@ function PanelApp() {
           overflow: "hidden", // no scroll on wrapper
           display: "flex",
           flexDirection: "column",
+          paddingBottom: 50, // space for user email
+          boxSizing: "border-box",
         }}
       >
         <SessionList />

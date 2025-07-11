@@ -70,12 +70,17 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
     <div
       style={{
         width,
-        maxHeight: "60%",
+        flex: 1,
         overflowY: expanded ? "auto" : "hidden",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
         padding: 8,
         boxSizing: "border-box",
         backgroundColor: "var(--color-background)",
         color: "var(--text-primary)",
+        borderTop: "1px solid var(--neutral-outline)",
+        marginTop: 4,
       }}
     >
       <div
@@ -83,6 +88,10 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
           display: "flex",
           alignItems: "center",
           marginBottom: 4,
+          position: "sticky",
+          top: 0,
+          backgroundColor: "var(--color-background)",
+          zIndex: 2,
         }}
       >
         {/* Expand/collapse control */}
@@ -128,14 +137,15 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
               key={doc.id}
               onClick={() => openDocument(doc.id)}
               style={{
-                padding: "6px 8px",
-                borderRadius: 4,
+                padding: "8px 10px",
+                borderRadius: 6,
                 cursor: "pointer",
-                fontSize: 12,
+                transition: "background-color 0.2s ease",
+                fontSize: 13,
                 marginBottom: 4,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
+                whiteSpace: "normal",
+                wordBreak: "break-word",
+                lineHeight: 1.4,
               }}
             >
               {doc.title || doc.id}
