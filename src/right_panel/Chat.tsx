@@ -474,8 +474,10 @@ export default function Chat() {
 
     await Promise.all(cachingTasks);
 
-    // Persist the (possibly) updated cache.
-    setDocContentMap(updatedMap);
+    // Do NOT persist the updated cache here – this function should ONLY expand
+    // placeholders for the outgoing message so that the UI continues to show
+    // the original @placeholders. Any caching is handled when the user picks a
+    // document from the picker.
 
     // Replace placeholders with full content tags.
     let result = text;
