@@ -536,6 +536,12 @@ export default function Chat() {
     }
   };
 
+  // Helper: Convert custom <tag>...<\/tag> into @tag for display
+  const formatMessageContent = (text: string): string => {
+    if (!text) return text;
+    return text.replace(/<([^>]+?)>[\s\S]*?<\/\1>/g, (_match, tagName: string) => `@${tagName.trim()}`);
+  };
+
   const handleSend = async () => {
     if (!input.trim()) return;
     if (!token) {
@@ -787,7 +793,7 @@ export default function Chat() {
               fontSize: "12px"
             }}
           >
-            {msg.content}
+            {formatMessageContent(msg.content)}
           </span>
         </div>
       ))}
