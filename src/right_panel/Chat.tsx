@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import PlusIcon from "../components/PlusIcon";
 import { CombinerRestClient, CombinerWebSocketClient, useBackend } from "aiwize-combiner-core";
 import SendIcon from "../components/SendIcon";
@@ -313,28 +313,39 @@ export default function Chat() {
     })();
   }, [token, msgSessionId]);
 
-  // Fetch user's simple documents when token is available
+  // Reusable helper to load user's simple documents.
+  // Defined with useCallback so it can be reused from effects/handlers.
+  const fetchDocs = useCallback(async () => {
+    if (!token) return;
+    try {
+      const resp = await fetch(`${WIZE_TEAMS_BASE_URL}/simple-documents?skip=0&limit=100`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!resp.ok) {
+        console.warn("[Chat] Failed to load documents", resp.status);
+        return;
+      }
+      const data: SimpleDocument[] = await resp.json();
+      setDocs(data);
+    } catch (err) {
+      console.error("[Chat] Error fetching documents", err);
+    }
+  }, [token]);
+
+  // Initial load when token becomes available
   useEffect(() => {
     if (!token) return;
-    (async () => {
-      try {
-        const resp = await fetch(`${WIZE_TEAMS_BASE_URL}/simple-documents?skip=0&limit=100`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-        if (!resp.ok) {
-          console.warn("[Chat] Failed to load documents", resp.status);
-          return;
-        }
-        const data: SimpleDocument[] = await resp.json();
-        setDocs(data);
-      } catch (err) {
-        console.error("[Chat] Error fetching documents", err);
-      }
-    })();
-  }, [token]);
+    fetchDocs();
+  }, [token, fetchDocs]);
+
+  // Lazy refresh every time the document picker is opened so the list stays up-to-date
+  useEffect(() => {
+    if (!showDocPicker) return;
+    fetchDocs();
+  }, [showDocPicker, fetchDocs]);
 
   // Fallback when no agent/model supplied – default to first available model once we have the list
   useEffect(() => {

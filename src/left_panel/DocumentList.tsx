@@ -5,6 +5,7 @@ import {
   WIZE_TEAMS_UI_BASE_URL,
 } from "../utils/api";
 import { useBackend } from "aiwize-combiner-core";
+import ReloadIcon from "../components/ReloadIcon";
 
 interface SimpleDocument {
   id: string;
@@ -30,32 +31,35 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
     })();
   }, []);
 
+  // Util function to fetch documents so we can call it from multiple places
+  const fetchDocs = async (t: string) => {
+    try {
+      const resp = await fetch(
+        `${WIZE_TEAMS_BASE_URL}/simple-documents?skip=0&limit=100`,
+        {
+          headers: {
+            Authorization: `Bearer ${t}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      if (!resp.ok) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to load documents", resp.status);
+        return;
+      }
+      const data: SimpleDocument[] = await resp.json();
+      setDocs(data);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Error fetching documents", err);
+    }
+  };
+
   // Fetch documents when token ready
   useEffect(() => {
     if (!token) return;
-    (async () => {
-      try {
-        const resp = await fetch(
-          `${WIZE_TEAMS_BASE_URL}/simple-documents?skip=0&limit=100`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-        if (!resp.ok) {
-          // eslint-disable-next-line no-console
-          console.error("Failed to load documents", resp.status);
-          return;
-        }
-        const data: SimpleDocument[] = await resp.json();
-        setDocs(data);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("Error fetching documents", err);
-      }
-    })();
+    fetchDocs(token);
   }, [token]);
 
   const openDocument = (docId: string) => {
@@ -75,16 +79,47 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
       }}
     >
       <div
-        onClick={() => setExpanded((v) => !v)}
         style={{
           display: "flex",
           alignItems: "center",
-          cursor: "pointer",
           marginBottom: 4,
         }}
       >
-        <span style={{ fontSize: 12, marginRight: 4 }}>{expanded ? "▼" : "▶"}</span>
-        <h3 style={{ margin: 0, fontSize: 14 }}>Documents</h3>
+        {/* Expand/collapse control */}
+        <div
+          onClick={() => setExpanded((v) => !v)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            cursor: "pointer",
+            flexGrow: 1,
+          }}
+        >
+          <span style={{ fontSize: 12, marginRight: 4 }}>
+            {expanded ? "▼" : "▶"}
+          </span>
+          <h3 style={{ margin: 0, fontSize: 14 }}>Documents</h3>
+        </div>
+        {/* Reload button */}
+        {token && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              fetchDocs(token);
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 4,
+              cursor: "pointer",
+              color: "var(--text-primary)",
+            }}
+            title="Reload documents"
+          >
+            {/* We use currentColor so icon inherits text */}
+            <ReloadIcon size={12} />
+          </button>
+        )}
       </div>
       {expanded && (
         <>
