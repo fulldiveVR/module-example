@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { getToken } from "../utils/auth";
 import { WIZE_TEAMS_BASE_URL } from "../utils/api";
 import { CombinerWebSocketClient } from "aiwize-combiner-core";
+import { MODULE_ID } from "@/hooks/useTheme";
 
 interface AgentSession {
   id: string;
@@ -47,7 +48,7 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
 
   // Establish WS connection when component mounts
   useEffect(() => {
-    const ws = new CombinerWebSocketClient({ moduleId: "simple-docs-with-chat", panel: "left" });
+    const ws = new CombinerWebSocketClient({ moduleId: MODULE_ID, panel: "left" });
     wsRef.current = ws;
 
     const handleJson = (msg: any) => {

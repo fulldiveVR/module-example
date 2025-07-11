@@ -8,6 +8,7 @@ import PageScreenshotIcon from "../components/PageScreenshotIcon";
 import { getToken } from "../utils/auth";
 import { WIZE_TEAMS_BASE_URL } from "../utils/api";
 import { reportError } from "../utils/errorReporter";
+import { MODULE_ID } from "@/hooks/useTheme";
 
 interface Model {
   id: string;
@@ -195,7 +196,7 @@ export default function Chat() {
 
   // Establish WS connection once on mount
   useEffect(() => {
-    const ws = new CombinerWebSocketClient({ moduleId: "simple-docs-with-chat", panel: "right" });
+    const ws = new CombinerWebSocketClient({ moduleId: MODULE_ID, panel: "right" });
     wsRef.current = ws;
 
     const processMessageObj = (msg: any) => {
@@ -381,7 +382,7 @@ export default function Chat() {
 
   // Initialize Combiner REST client & load persisted chat state (once)
   useEffect(() => {
-    combinerRef.current = new CombinerRestClient({ moduleId: "simple-docs-with-chat" });
+    combinerRef.current = new CombinerRestClient({ moduleId: MODULE_ID });
     (async () => {
       try {
         // fetch existing documents – pick the most recently updated (last)

@@ -5,12 +5,12 @@ import { reportError } from "../utils/errorReporter";
 export type Theme = "light" | "dark";
 
 const THEME_KEY = "aiwize-theme";
-const MODULE_ID = "simple-docs-with-chat"; // keep in sync with manifest.json
+export const MODULE_ID = "www"; // keep in sync with manifest.json
 
 export function useTheme(panelName: string) {
 
   const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
+    if (typeof window === "undefined") return "dark";
     const stored = localStorage.getItem(THEME_KEY);
     const initial = stored === "dark" ? "dark" : "light";
     // Apply immediately to avoid flash
