@@ -136,7 +136,7 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
     <div
       style={{
         width,
-        flex: 1,
+        flex: expanded ? 1 : undefined,
         overflowY: expanded ? "auto" : "hidden",
         display: "flex",
         flexDirection: "column",
