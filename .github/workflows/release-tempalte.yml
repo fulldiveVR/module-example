@@ -13,31 +13,18 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build project
-        run: npm run build
-
-      - name: Package selected outputs
+      # Removed Node setup, install dependencies, and build steps; replace with repository packaging
+      - name: Package repository into zip
         run: |
           BRANCH_NAME="${GITHUB_REF##*/}"
           APP_DIR="app"
-          mkdir -p "$APP_DIR/left_panel" "$APP_DIR/right_panel"
-          cp dist/left_panel/bundle.js "$APP_DIR/left_panel/bundle.js"
-          # Handle possible alternate spelling of right panel directory
-          if [ -f dist/right_panel/bundle.js ]; then
-            cp dist/right_panel/bundle.js "$APP_DIR/right_panel/bundle.js"
-          elif [ -f dist/rigth/bundle.js ]; then
-            cp dist/rigth/bundle.js "$APP_DIR/right_panel/bundle.js"
-          fi
-          cp manifest.json "$APP_DIR/manifest.json"
+          mkdir -p "$APP_DIR"
+          shopt -s dotglob
+          for item in * .*; do
+            if [[ "$item" != "$APP_DIR" && "$item" != "." && "$item" != ".." && "$item" != ".git" ]]; then
+              cp -r "$item" "$APP_DIR/"
+            fi
+          done
           zip -r "${BRANCH_NAME}.zip" "$APP_DIR"
 
       # Create or update a GitHub Release for this branch/tag and attach the bundle ZIP
