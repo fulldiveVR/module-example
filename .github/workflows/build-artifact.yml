@@ -28,13 +28,13 @@ jobs:
       - name: Package selected outputs
         run: |
           BRANCH_NAME="${GITHUB_REF##*/}"
-          mkdir -p "$BRANCH_NAME"
-          cp dist/left_panel/bundle.js "$BRANCH_NAME/left_panel.bundle.js"
+          mkdir -p "$BRANCH_NAME/left_panel" "$BRANCH_NAME/right_panel"
+          cp dist/left_panel/bundle.js "$BRANCH_NAME/left_panel/bundle.js"
           # Handle possible alternate spelling of right panel directory
           if [ -f dist/right_panel/bundle.js ]; then
-            cp dist/right_panel/bundle.js "$BRANCH_NAME/right_panel.bundle.js"
+            cp dist/right_panel/bundle.js "$BRANCH_NAME/right_panel/bundle.js"
           elif [ -f dist/rigth/bundle.js ]; then
-            cp dist/rigth/bundle.js "$BRANCH_NAME/right_panel.bundle.js"
+            cp dist/rigth/bundle.js "$BRANCH_NAME/right_panel/bundle.js"
           fi
           cp manifest.json "$BRANCH_NAME/manifest.json"
           zip -r "${BRANCH_NAME}.zip" "$BRANCH_NAME"
