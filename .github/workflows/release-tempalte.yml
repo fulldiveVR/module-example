@@ -1,4 +1,4 @@
-name: Build and Package Bundles
+name: Release Tempalte
 
 on:
   workflow_dispatch:
