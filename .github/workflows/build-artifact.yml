@@ -40,23 +40,13 @@ jobs:
           zip -r "${BRANCH_NAME}.zip" "$BRANCH_NAME"
 
       # Create or update a GitHub Release for this branch/tag and attach the bundle ZIP
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Publish release with asset
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Build for ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}-${{ github.run_id }}
+          name: Build for ${{ github.ref_name }} (run ${{ github.run_number }})
+          files: ${{ github.ref_name }}.zip
           draft: false
-          prerelease: false
-
-      - name: Upload ZIP to release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ github.ref_name }}.zip
-          asset_name: ${{ github.ref_name }}.zip
-          asset_content_type: application/zip 
+          prerelease: false 
