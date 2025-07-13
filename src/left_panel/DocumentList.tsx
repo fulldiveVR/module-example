@@ -6,6 +6,7 @@ import {
 } from "../utils/api";
 import { useBackend } from "aiwize-combiner-core";
 import ReloadIcon from "../components/ReloadIcon";
+import DeleteIcon from "../components/DeleteIcon";
 
 interface SimpleDocument {
   id: string;
@@ -53,6 +54,28 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("Error fetching documents", err);
+    }
+  };
+
+  const deleteDoc = async (docId: string) => {
+    if (!token) return;
+    try {
+      const resp = await fetch(`${WIZE_TEAMS_BASE_URL}/simple-documents/${docId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!resp.ok && resp.status !== 204) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to delete document", resp.status);
+        return;
+      }
+      // Optimistically remove from list
+      setDocs((prev) => prev.filter((d) => d.id !== docId));
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Error deleting document", err);
     }
   };
 
@@ -146,9 +169,29 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
                 whiteSpace: "normal",
                 wordBreak: "break-word",
                 lineHeight: 1.4,
+                display: "flex",
+                alignItems: "center",
               }}
             >
-              {doc.title || doc.id}
+              {/* Title */}
+              <span style={{ flexGrow: 1 }}>{doc.title || doc.id}</span>
+              {/* Delete button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteDoc(doc.id);
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 4,
+                  cursor: "pointer",
+                  color: "var(--neutral-gray)",
+                }}
+                title="Delete document"
+              >
+                <DeleteIcon size={12} />
+              </button>
             </div>
           ))}
           {docs.length === 0 && (

@@ -682,6 +682,7 @@ export default function Chat() {
         display: "flex",
         height: 60,
         alignItems: "center",
+        // padding: "0 0 0 10px",
         justifyContent: "space-between",
         flexWrap: "wrap", // allow second row for session label
         borderBottom: "1px solid var(--neutral-outline)",
