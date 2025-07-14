@@ -666,11 +666,14 @@ export default function Chat() {
   // UI helpers
   // memoize common style to avoid new object each render
   const controlStyle: React.CSSProperties = React.useMemo(() => ({
-    backgroundColor: "var(--neutral-background)",
+    backgroundColor: "var(--color-surface)",
     color: "var(--text-primary)",
-    margin: 4,
     border: "1px solid var(--neutral-outline)",
-    borderRadius: 6,
+    borderRadius: "var(--radius-md)",
+    padding: "var(--spacing-sm) var(--spacing-md)",
+    fontSize: "var(--font-size-sm)",
+    fontFamily: "var(--font-family-primary)",
+    transition: "all var(--transition-fast)",
   }), []);
 
   // Inline JSX blocks to keep DOM elements stable and avoid remounting
@@ -680,19 +683,20 @@ export default function Chat() {
       style={{
         position: "relative",
         display: "flex",
-        height: 60,
+        height: 64,
         alignItems: "center",
-        // padding: "0 0 0 10px",
+        padding: "0 var(--spacing-xl)",
         justifyContent: "space-between",
         flexWrap: "wrap", // allow second row for session label
+        backgroundColor: "var(--color-surface)",
         borderBottom: "1px solid var(--neutral-outline)",
-        background: "linear-gradient(90deg, var(--tile-bg) 0%, var(--neutral-light-gray-hover) 100%)",
-        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.06)",
-        backdropFilter: "blur(6px)",
+        boxShadow: "var(--shadow-sm)",
+        backdropFilter: "blur(10px)",
         overflowX: "hidden", // avoid creating horizontal scrollbars
+        zIndex: 10,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0, gap: "var(--spacing-md)" }}>
         <select
           value={
             selectedModel
@@ -734,14 +738,16 @@ export default function Chat() {
               }
             }
           }}
+          className="input"
           style={{
             ...controlStyle,
-            height: 28,
-            padding: "2px 8px",
+            height: 36,
             flex: "1 1 200px", // let it shrink and wrap as needed
             minWidth: 0, // allow shrinking below intrinsic width
             maxWidth: "100%", // never exceed container width
+            cursor: "pointer",
             boxSizing: "border-box",
+            lineHeight: "normal",
           }}
         >
           <option value="">Select model or agent</option>
@@ -765,31 +771,41 @@ export default function Chat() {
             step={0.1}
             value={temperature}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemperature(Number(e.target.value))}
+            className="input"
             style={{
               ...controlStyle,
-              width: 70,
-              height: 28,
-              padding: "2px 6px",
-              fontSize: 13,
+              width: 80,
+              height: 36,
+              textAlign: "center",
               boxSizing: "border-box",
+              lineHeight: "normal",
             }}
             title="Temperature"
+            placeholder="0.7"
           />
         )}
 
         {agentSessionId && (
-          <span
-            style={{
-              fontSize: 10,
-              color: "var(--neutral-gray)",
-              marginTop: 2,
-              textAlign: "end",
-              width: "100%", // forces new line below selector row
-              whiteSpace: "nowrap",
-            }}
-          >
-            Session: {agentSessionId}
-          </span>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--spacing-xs)",
+            padding: "var(--spacing-xs) var(--spacing-sm)",
+            backgroundColor: "var(--primary-transparent)",
+            borderRadius: "var(--radius-full)",
+            fontSize: "var(--font-size-xs)",
+            fontWeight: 500,
+            color: "var(--primary)",
+            border: "1px solid var(--primary)",
+          }}>
+            <div style={{
+              width: 6,
+              height: 6,
+              borderRadius: "var(--radius-full)",
+              backgroundColor: "var(--primary)",
+            }} />
+            <span>Session: {agentSessionId.slice(-8)}</span>
+          </div>
         )}
       </div>
     </div>
@@ -800,37 +816,113 @@ export default function Chat() {
       style={{
         flex: 1,
         overflowY: "auto",
-        padding: "16px 8px",
-        borderRadius: 8,
+        padding: "var(--spacing-xl) var(--spacing-xl) 0 var(--spacing-xl)",
+        backgroundColor: "var(--color-background)",
+        position: "relative",
       }}
     >
-      {messages.map((msg: Message) => (
-        <div
-          key={msg.id}
-          style={{
-            marginBottom: 6,
-            textAlign: msg.sender === "user" ? "right" : "left",
-          }}
-        >
-          <span
+      <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+        {messages.map((msg: Message) => (
+          <div
+            key={msg.id}
+            className="fade-in"
             style={{
-              display: "inline-block",
-              background:
-                msg.sender === "user" ? "var(--primary)" : "var(--neutral-light-gray-hover)",
-              color: msg.sender === "user" ? "#fff" : "var(--text-primary)",
-              padding: "8px 12px",
-              borderRadius: 12,
-              maxWidth: "80%",
-              whiteSpace: "pre-wrap",
-              fontSize: "13px",
-              lineHeight: "1.4",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+              marginBottom: "var(--spacing-lg)",
+              display: "flex",
+              justifyContent: msg.sender === "user" ? "flex-end" : "flex-start",
             }}
           >
-            {formatMessageContent(msg.content)}
-          </span>
-        </div>
-      ))}
+            <div
+              style={{
+                maxWidth: "70%",
+                padding: "var(--spacing-md) var(--spacing-lg)",
+                borderRadius: "var(--radius-lg)",
+                backgroundColor: msg.sender === "user" ? "var(--primary)" : "var(--color-surface)",
+                color: msg.sender === "user" ? "#fff" : "var(--text-primary)",
+                boxShadow: "var(--shadow-sm)",
+                fontSize: "var(--font-size-sm)",
+                lineHeight: 1.6,
+                border: msg.sender === "user" ? "none" : "1px solid var(--neutral-outline)",
+                fontFamily: "var(--font-family-primary)",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                position: "relative",
+              }}
+            >
+              {msg.sender === "assistant" && (
+                <div style={{
+                  position: "absolute",
+                  top: -8,
+                  left: "var(--spacing-lg)",
+                  width: 0,
+                  height: 0,
+                  borderLeft: "8px solid transparent",
+                  borderRight: "8px solid transparent",
+                  borderBottom: "8px solid var(--color-surface)",
+                }} />
+              )}
+              {msg.sender === "user" && (
+                <div style={{
+                  position: "absolute",
+                  top: -8,
+                  right: "var(--spacing-lg)",
+                  width: 0,
+                  height: 0,
+                  borderLeft: "8px solid transparent",
+                  borderRight: "8px solid transparent",
+                  borderBottom: "8px solid var(--primary)",
+                }} />
+              )}
+              <div style={{
+                fontSize: "var(--font-size-xs)",
+                fontWeight: 600,
+                marginBottom: "var(--spacing-xs)",
+                color: msg.sender === "user" ? "rgba(255, 255, 255, 0.8)" : "var(--text-secondary)",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}>
+                {msg.sender === "user" ? "You" : "Assistant"}
+              </div>
+              {formatMessageContent(msg.content)}
+            </div>
+          </div>
+        ))}
+        {messages.length === 0 && (
+          <div style={{
+            textAlign: "center",
+            padding: "var(--spacing-3xl)",
+            color: "var(--text-tertiary)",
+          }}>
+            <div style={{
+              fontSize: "var(--font-size-3xl)",
+              marginBottom: "var(--spacing-lg)",
+              opacity: 0.3,
+            }}>
+              💬
+            </div>
+            <div style={{
+              fontSize: "var(--font-size-xl)",
+              fontWeight: 600,
+              marginBottom: "var(--spacing-md)",
+              color: "var(--text-primary)",
+            }}>
+              Welcome to AI Wize
+            </div>
+            <div style={{
+              fontSize: "var(--font-size-md)",
+              marginBottom: "var(--spacing-sm)",
+            }}>
+              Start a conversation with AI
+            </div>
+            <div style={{
+              fontSize: "var(--font-size-sm)",
+              color: "var(--text-tertiary)",
+            }}>
+              Select a model or agent above and type your message below
+            </div>
+          </div>
+        )}
+      </div>
       <div ref={messagesEndRef} />
     </div>
   );
@@ -857,214 +949,268 @@ export default function Chat() {
   };
 
   const inputRow = (
-    <div style={{ display: "flex", marginTop: 8 }}>
-      <div style={{ position: "relative", flex: 1 }}>
-        <textarea
-          ref={inputRef}
-          value={input}
-          rows={4}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInput(e.target.value)}
-          onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-            if (e.key === "@") {
-              setShowDocPicker(true);
-            } else if (e.key === "Escape") {
-              setShowDocPicker(false);
-            }
-            if (e.key === "Enter") {
-              if (e.shiftKey) {
-                // allow newline
-                return;
-              }
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          placeholder="Type a message..."
-          style={{
-            width: "100%",
-            height: textareaHeight,
-            padding: 10,
-            paddingRight: 36,
-            resize: "none",
-            fontSize: "13px",
-            lineHeight: "1.4",
-            minHeight: 92,
-            border: "1px solid var(--neutral-outline)",
-            backgroundColor: "var(--tile-bg)",
-            color: "var(--text-primary)",
-            margin: 0,
-          }}
-        />
-        {/* custom drag handle */}
-        <div
-          onMouseDown={handleDragMouseDown}
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 4,
-            width: 14,
-            height: 14,
-            cursor: "row-resize",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--neutral-gray)",
-            userSelect: "none",
-          }}
-        >
-          ≡
+    <div style={{
+      padding: "var(--spacing-md) var(--spacing-xl)",
+      backgroundColor: "var(--color-surface)",
+      borderTop: "1px solid var(--neutral-outline)",
+      boxShadow: "var(--shadow-sm)",
+      position: "relative",
+    }}>
+            <div style={{
+        maxWidth: "800px",
+        margin: "0 auto",
+        position: "relative",
+      }}>
+        {/* Action buttons above input */}
+        <div style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: "var(--spacing-md)",
+          marginBottom: "var(--spacing-md)",
+          opacity: 0.7,
+        }}>
+          <button
+            onClick={startNewSession}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              color: "var(--text-secondary)",
+              transition: "color var(--transition-fast)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-primary)"}
+            onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-secondary)"}
+            title="Start new session"
+          >
+            <PlusIcon size={16} />
+          </button>
+
+          <button
+            onClick={handleInsertPageContent}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              color: "var(--text-secondary)",
+              transition: "color var(--transition-fast)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-primary)"}
+            onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-secondary)"}
+            title="Insert page content"
+          >
+            <PageContentIcon size={16} />
+          </button>
+
+          <button
+            onClick={handleInsertPageInfo}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              color: "var(--text-secondary)",
+              transition: "color var(--transition-fast)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-primary)"}
+            onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-secondary)"}
+            title="Insert page info"
+          >
+            <PageInfoIcon size={16} />
+          </button>
+
+          <button
+            onClick={handleInsertPageScreenshots}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              color: "var(--text-secondary)",
+              transition: "color var(--transition-fast)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-primary)"}
+            onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-secondary)"}
+            title="Insert page screenshots"
+          >
+            <PageScreenshotIcon size={16} />
+          </button>
         </div>
-        {/* send button inside textarea container */}
-        <button
-          onClick={handleSend}
-          disabled={isSendDisabled}
-          style={{
-            position: "absolute",
-            bottom: 4,
-            right: 1,
-            width: 28,
-            height: 28,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            backgroundColor: "transparent",
-            border: "none",
-            cursor: isSendDisabled ? "not-allowed" : "pointer",
-            color: isSendDisabled ? "var(--neutral-gray)" : "var(--primary)",
-          }}
-        >
-          <SendIcon />
-        </button>
 
-        {/* new session (plus) button */}
-        <button
-          onClick={startNewSession}
-          title="New Session"
-          style={{
-            position: "absolute",
-            top: 20,
-            right: 1,
-            width: 22,
-            height: 22,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            backgroundColor: "transparent",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--primary)",
-          }}
-        >
-          <PlusIcon size={11} />
-        </button>
-
-        {/* page content button */}
-        <button
-          onClick={handleInsertPageContent}
-          title="Insert page content"
-          style={{
-            position: "absolute",
-            top: 42,
-            right: 1,
-            width: 22,
-            height: 22,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            backgroundColor: "transparent",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--primary)",
-          }}
-        >
-          <PageContentIcon size={11} />
-        </button>
-
-        {/* page info button */}
-        <button
-          onClick={handleInsertPageInfo}
-          title="Insert page info"
-          style={{
-            position: "absolute",
-            top:64,
-            right: 1,
-            width: 22,
-            height: 22,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            backgroundColor: "transparent",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--primary)",
-          }}
-        >
-          <PageInfoIcon size={12} />
-        </button>
-
-        {/* page screenshots button */}
-        <button
-          onClick={handleInsertPageScreenshots}
-          title="Insert page screenshots"
-          style={{
-            position: "absolute",
-            top: 86,
-            right: 1,
-            width: 22,
-            height: 22,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            backgroundColor: "transparent",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--primary)",
-          }}
-        >
-          <PageScreenshotIcon size={12} />
-        </button>
-
-        {/* NEW: document picker popover */}
-        {showDocPicker && (
-          <div
+        <div style={{
+          position: "relative",
+          backgroundColor: "var(--color-background)",
+          borderRadius: "var(--radius-lg)",
+          border: "1px solid var(--neutral-outline)",
+          overflow: "hidden",
+          transition: "all var(--transition-fast)",
+        }}>
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInput(e.target.value)}
+            onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+              if (e.key === "@") {
+                setShowDocPicker(true);
+              } else if (e.key === "Escape") {
+                setShowDocPicker(false);
+              }
+              if (e.key === "Enter") {
+                if (e.shiftKey) {
+                  // allow newline
+                  return;
+                }
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Type your message here... (Press Enter to send, Shift+Enter for new line)"
+            style={{
+              width: "100%",
+              height: textareaHeight,
+              padding: "var(--spacing-lg)",
+              paddingBottom: "50px", // space for send button at bottom
+              resize: "none",
+              border: "none",
+              outline: "none",
+              fontSize: "var(--font-size-sm)",
+              fontFamily: "var(--font-family-primary)",
+              lineHeight: 1.5,
+              backgroundColor: "transparent",
+              color: "var(--text-primary)",
+              minHeight: 100,
+            }}
+          />
+          
+          {/* Send button at bottom */}
+          <button
+            onClick={handleSend}
+            disabled={isSendDisabled}
             style={{
               position: "absolute",
-              bottom: textareaHeight + 10,
-              right: 1,
-              width: 220,
-              maxHeight: 220,
-              overflowY: "auto",
-              backgroundColor: "var(--color-background)",
-              border: "1px solid var(--neutral-outline)",
-              borderRadius: 4,
-              boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-              zIndex: 1000,
+              bottom: "var(--spacing-md)",
+              right: "var(--spacing-md)",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: isSendDisabled ? "not-allowed" : "pointer",
+              color: isSendDisabled ? "var(--text-tertiary)" : "var(--primary)",
+              transition: "color var(--transition-fast)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: isSendDisabled ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (!isSendDisabled) {
+                e.currentTarget.style.color = "var(--primary-hover)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isSendDisabled) {
+                e.currentTarget.style.color = "var(--primary)";
+              }
+            }}
+            title="Send message (Enter)"
+          >
+            <SendIcon />
+          </button>
+
+          {/* Resize handle */}
+          <div
+            onMouseDown={handleDragMouseDown}
+            style={{
+              position: "absolute",
+              top: 4,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 40,
+              height: 12,
+              cursor: "row-resize",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--text-tertiary)",
+              userSelect: "none",
+              fontSize: "var(--font-size-sm)",
+              opacity: 0.5,
             }}
           >
-            {docs.map((d) => (
-              <div
-                key={d.id}
-                onClick={() => handleSelectDocument(d)}
-                style={{
-                  padding: "6px 8px",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {d.title || d.id}
-              </div>
-            ))}
-            {docs.length === 0 && (
-              <div style={{ padding: 8, fontSize: 12, color: "var(--neutral-gray)" }}>No documents</div>
-            )}
+            ⋯
+          </div>
+        </div>
+
+                 {/* Document picker popover */}
+         {showDocPicker && (
+           <div
+             style={{
+               position: "absolute",
+               bottom: textareaHeight + 60, // more space above input area
+               right: 0,
+               width: 280,
+               maxHeight: 300,
+               overflowY: "auto",
+               backgroundColor: "var(--color-surface)",
+               border: "1px solid var(--neutral-outline)",
+               borderRadius: "var(--radius-lg)",
+               boxShadow: "var(--shadow-lg)",
+               zIndex: 1000,
+             }}
+           >
+            <div style={{
+              padding: "var(--spacing-md) var(--spacing-lg)",
+              borderBottom: "1px solid var(--neutral-outline)",
+              fontSize: "var(--font-size-sm)",
+              fontWeight: 600,
+              color: "var(--text-primary)",
+            }}>
+              Select Document
+            </div>
+            <div style={{ padding: "var(--spacing-sm)" }}>
+              {docs.map((d) => (
+                <div
+                  key={d.id}
+                  onClick={() => handleSelectDocument(d)}
+                  className="list-item"
+                  style={{
+                    padding: "var(--spacing-sm) var(--spacing-md)",
+                    cursor: "pointer",
+                    borderRadius: "var(--radius-md)",
+                    fontSize: "var(--font-size-sm)",
+                    transition: "all var(--transition-fast)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={d.title || d.id}
+                >
+                  {d.title || d.id}
+                </div>
+              ))}
+              {docs.length === 0 && (
+                <div style={{
+                  padding: "var(--spacing-lg)",
+                  textAlign: "center",
+                  fontSize: "var(--font-size-sm)",
+                  color: "var(--text-tertiary)",
+                }}>
+                  No documents available
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1072,7 +1218,37 @@ export default function Chat() {
   );
 
   if (token === undefined) {
-    return <div>Loading...</div>;
+    return (
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "100%",
+        backgroundColor: "var(--color-background)",
+        color: "var(--text-secondary)",
+      }}>
+        <div style={{
+          textAlign: "center",
+          padding: "var(--spacing-3xl)",
+          backgroundColor: "var(--color-surface)",
+          borderRadius: "var(--radius-lg)",
+          border: "1px solid var(--neutral-outline)",
+          boxShadow: "var(--shadow-sm)",
+        }}>
+          <div style={{
+            fontSize: "var(--font-size-xl)",
+            fontWeight: 600,
+            marginBottom: "var(--spacing-md)",
+            color: "var(--text-primary)",
+          }}>
+            Loading...
+          </div>
+          <div style={{ fontSize: "var(--font-size-md)" }}>
+            Please wait while we initialize the chat
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1083,6 +1259,8 @@ export default function Chat() {
         height: "100%",
         width: "100%",
         overflowX: "hidden", // ensure no horizontal scroll for the entire panel
+        backgroundColor: "var(--color-background)",
+        fontFamily: "var(--font-family-primary)",
       }}
     >
       {headerRow}

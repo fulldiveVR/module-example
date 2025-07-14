@@ -32,8 +32,8 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [currentId, setCurrentId] = useState<string | null>(null);
 
-  // Collapsible list state – closed by default
-  const [expanded, setExpanded] = useState(false);
+  // Collapsible list state – expanded by default for better UX
+  const [expanded, setExpanded] = useState(true);
 
   // WebSocket ref (persist across renders)
   const wsRef = useRef<CombinerWebSocketClient | null>(null);
@@ -136,70 +136,170 @@ export default function SessionList({ width = "100%" }: SessionListProps) {
     <div
       style={{
         width,
-        flex: expanded ? 1 : undefined,
-        overflowY: expanded ? "auto" : "hidden",
         display: "flex",
         flexDirection: "column",
-        position: "relative",
-        padding: 8,
-        boxSizing: "border-box",
-        backgroundColor: "var(--color-background)",
-        color: "var(--text-primary)",
-        borderRight: "1px solid var(--neutral-outline)",
+        backgroundColor: "var(--color-surface)",
+        borderRadius: "var(--radius-lg)",
+        border: "1px solid var(--neutral-outline)",
+        boxShadow: "var(--shadow-sm)",
+        overflow: "hidden",
+        transition: "all var(--transition-base)",
       }}
     >
+      {/* Header */}
       <div
         onClick={() => setExpanded((v) => !v)}
         style={{
+          padding: "var(--spacing-md) var(--spacing-lg)",
           display: "flex",
           alignItems: "center",
           cursor: "pointer",
-          marginBottom: 4,
-          position: "sticky",
-          top: 0,
-          backgroundColor: "var(--color-background)",
-          zIndex: 2,
+          backgroundColor: expanded ? "var(--neutral-light-gray-hover)" : "transparent",
+          borderBottom: expanded ? "1px solid var(--neutral-outline)" : "none",
+          transition: "all var(--transition-fast)",
+          userSelect: "none",
         }}
       >
-        <span style={{ fontSize: 12, marginRight: 4 }}>
-          {expanded ? "▼" : "▶"}
-        </span>
-        <h3 style={{ margin: 0, fontSize: 14 }}>Sessions</h3>
+        <div style={{
+          width: 20,
+          height: 20,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginRight: "var(--spacing-sm)",
+          color: "var(--text-secondary)",
+          fontSize: "var(--font-size-sm)",
+          transition: "transform var(--transition-fast)",
+          transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+        }}>
+          ▶
+        </div>
+        <h3 style={{
+          margin: 0,
+          fontSize: "var(--font-size-md)",
+          fontWeight: 600,
+          color: "var(--text-primary)",
+          letterSpacing: "-0.025em",
+        }}>
+          Sessions
+        </h3>
+        <div style={{
+          marginLeft: "auto",
+          fontSize: "var(--font-size-xs)",
+          color: "var(--text-tertiary)",
+          fontWeight: 500,
+          backgroundColor: "var(--neutral-light-gray-hover)",
+          padding: "var(--spacing-xs) var(--spacing-sm)",
+          borderRadius: "var(--radius-full)",
+        }}>
+          {sessions.length}
+        </div>
       </div>
+
+      {/* Content */}
       {expanded && (
-        <>
-          {sessions.map((s) => {
-            const isActive = s.id === currentId;
-            const trimmedName = s.meta?.name?.trim() || "";
-            const label = s.id + " " + trimmedName;
-            return (
-              <div
-                key={s.id}
-                onClick={() => openSession(s)}
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  transition: "background-color 0.2s ease",
-                  backgroundColor: isActive ? "var(--primary-transparent-light)" : "transparent",
-                  fontWeight: isActive ? 600 : 400,
-                  fontSize: 13,
-                  marginBottom: 4,
-                  whiteSpace: "normal",
-                  wordBreak: "break-word",
-                  lineHeight: 1.4,
-                }}
-              >
-                {label}
-              </div>
-            );
-          })}
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "var(--spacing-xs)",
+            maxHeight: "300px",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            {sessions.map((s) => {
+              const isActive = s.id === currentId;
+              const trimmedName = s.meta?.name?.trim() || "";
+              const displayName = trimmedName || `Session ${s.id.slice(-8)}`;
+              
+              return (
+                <div
+                  key={s.id}
+                  onClick={() => openSession(s)}
+                  className={`list-item ${isActive ? 'active' : ''}`}
+                  style={{
+                    padding: "var(--spacing-sm)",
+                    borderRadius: "var(--radius-md)",
+                    cursor: "pointer",
+                    transition: "all var(--transition-fast)",
+                    backgroundColor: isActive ? "var(--primary-transparent)" : "transparent",
+                    border: isActive ? "1px solid var(--primary)" : "1px solid transparent",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "var(--spacing-sm)",
+                  }}>
+                    <div style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "var(--radius-full)",
+                      backgroundColor: isActive ? "var(--primary)" : "var(--neutral-gray)",
+                      transition: "all var(--transition-fast)",
+                      flexShrink: 0,
+                    }} />
+                    <div style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "var(--spacing-xs)",
+                      flex: 1,
+                      minWidth: 0,
+                    }}>
+                      <div style={{
+                        fontSize: "var(--font-size-sm)",
+                        fontWeight: isActive ? 600 : 500,
+                        color: isActive ? "var(--primary)" : "var(--text-primary)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}>
+                        {displayName}
+                      </div>
+                      {s.model && (
+                        <div style={{
+                          fontSize: "var(--font-size-xs)",
+                          color: "var(--text-tertiary)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "var(--spacing-xs)",
+                        }}>
+                          <span>{s.model.id}</span>
+                          <span>•</span>
+                          <span>T: {s.model.temperature}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           {sessions.length === 0 && (
-            <div style={{ fontSize: 12, color: "var(--neutral-gray)" }}>
-              No sessions
+            <div style={{
+              padding: "var(--spacing-2xl)",
+              textAlign: "center",
+              color: "var(--text-tertiary)",
+              fontSize: "var(--font-size-sm)",
+            }}>
+              <div style={{
+                fontSize: "var(--font-size-3xl)",
+                marginBottom: "var(--spacing-md)",
+                opacity: 0.3,
+              }}>
+                💬
+              </div>
+              <div style={{ fontWeight: 500, marginBottom: "var(--spacing-xs)" }}>
+                No sessions yet
+              </div>
+              <div style={{ fontSize: "var(--font-size-xs)" }}>
+                Start a new conversation to see sessions here
+              </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

@@ -11,6 +11,7 @@ import DeleteIcon from "../components/DeleteIcon";
 interface SimpleDocument {
   id: string;
   title: string;
+  updated?: string;
   // other fields are ignored for list rendering
 }
 
@@ -21,7 +22,8 @@ interface DocumentListProps {
 export default function DocumentList({ width = "100%" }: DocumentListProps) {
   const [token, setToken] = useState<string | null | undefined>(undefined);
   const [docs, setDocs] = useState<SimpleDocument[]>([]);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
+  const [loading, setLoading] = useState(false);
   const backend = useBackend();
 
   // Load auth token once
@@ -34,6 +36,7 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
 
   // Util function to fetch documents so we can call it from multiple places
   const fetchDocs = async (t: string) => {
+    setLoading(true);
     try {
       const resp = await fetch(
         `${WIZE_TEAMS_BASE_URL}/simple-documents?skip=0&limit=100`,
@@ -54,6 +57,8 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("Error fetching documents", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -93,28 +98,26 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
     <div
       style={{
         width,
-        flex: expanded ? 1 : undefined,
-        overflowY: expanded ? "auto" : "hidden",
         display: "flex",
         flexDirection: "column",
-        position: "relative",
-        padding: 8,
-        boxSizing: "border-box",
-        backgroundColor: "var(--color-background)",
-        color: "var(--text-primary)",
-        borderTop: "1px solid var(--neutral-outline)",
-        marginTop: 4,
+        backgroundColor: "var(--color-surface)",
+        borderRadius: "var(--radius-lg)",
+        border: "1px solid var(--neutral-outline)",
+        boxShadow: "var(--shadow-sm)",
+        overflow: "hidden",
+        transition: "all var(--transition-base)",
       }}
     >
+      {/* Header */}
       <div
         style={{
+          padding: "var(--spacing-md) var(--spacing-lg)",
           display: "flex",
           alignItems: "center",
-          marginBottom: 4,
-          position: "sticky",
-          top: 0,
-          backgroundColor: "var(--color-background)",
-          zIndex: 2,
+          backgroundColor: expanded ? "var(--neutral-light-gray-hover)" : "transparent",
+          borderBottom: expanded ? "1px solid var(--neutral-outline)" : "none",
+          transition: "all var(--transition-fast)",
+          userSelect: "none",
         }}
       >
         {/* Expand/collapse control */}
@@ -124,83 +127,206 @@ export default function DocumentList({ width = "100%" }: DocumentListProps) {
             display: "flex",
             alignItems: "center",
             cursor: "pointer",
-            flexGrow: 1,
+            flex: 1,
+            gap: "var(--spacing-sm)",
           }}
         >
-          <span style={{ fontSize: 12, marginRight: 4 }}>
-            {expanded ? "▼" : "▶"}
-          </span>
-          <h3 style={{ margin: 0, fontSize: 14 }}>Documents</h3>
+          <div style={{
+            width: 20,
+            height: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--text-secondary)",
+            fontSize: "var(--font-size-sm)",
+            transition: "transform var(--transition-fast)",
+            transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+          }}>
+            ▶
+          </div>
+          <h3 style={{
+            margin: 0,
+            fontSize: "var(--font-size-md)",
+            fontWeight: 600,
+            color: "var(--text-primary)",
+            letterSpacing: "-0.025em",
+          }}>
+            Documents
+          </h3>
+          <div style={{
+            fontSize: "var(--font-size-xs)",
+            color: "var(--text-tertiary)",
+            fontWeight: 500,
+            backgroundColor: "var(--neutral-light-gray-hover)",
+            padding: "var(--spacing-xs) var(--spacing-sm)",
+            borderRadius: "var(--radius-full)",
+          }}>
+            {docs.length}
+          </div>
         </div>
+
         {/* Reload button */}
         {token && (
-          <button
+          <div
             onClick={(e) => {
               e.stopPropagation();
-              fetchDocs(token);
+              if (!loading) fetchDocs(token);
             }}
             style={{
-              background: "none",
-              border: "none",
-              padding: 4,
-              cursor: "pointer",
-              color: "var(--text-primary)",
+              padding: "var(--spacing-sm)",
+              marginLeft: "var(--spacing-sm)",
+              opacity: loading ? 0.5 : 1,
+              cursor: loading ? "not-allowed" : "pointer",
+              color: "var(--text-secondary)",
+              transition: "color var(--transition-fast)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
             title="Reload documents"
+            onMouseEnter={(e) => {
+              if (!loading) e.currentTarget.style.color = "var(--text-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "var(--text-secondary)";
+            }}
           >
-            {/* We use currentColor so icon inherits text */}
-            <ReloadIcon size={12} />
-          </button>
+            <div style={{
+              animation: loading ? "spin 1s linear infinite" : "none",
+            }}>
+              <ReloadIcon size={16} />
+            </div>
+          </div>
         )}
       </div>
+
+      {/* Content */}
       {expanded && (
-        <>
-          {docs.map((doc) => (
-            <div
-              key={doc.id}
-              onClick={() => openDocument(doc.id)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 6,
-                cursor: "pointer",
-                transition: "background-color 0.2s ease",
-                fontSize: 13,
-                marginBottom: 4,
-                whiteSpace: "normal",
-                wordBreak: "break-word",
-                lineHeight: 1.4,
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              {/* Title */}
-              <span style={{ flexGrow: 1 }}>{doc.title || doc.id}</span>
-              {/* Delete button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteDoc(doc.id);
-                }}
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "var(--spacing-xs)",
+            maxHeight: "300px",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            {docs.map((doc) => (
+              <div
+                key={doc.id}
+                onClick={() => openDocument(doc.id)}
+                className="list-item"
                 style={{
-                  background: "none",
-                  border: "none",
-                  padding: 4,
+                  padding: "var(--spacing-sm)",
+                  borderRadius: "var(--radius-md)",
                   cursor: "pointer",
-                  color: "var(--neutral-gray)",
+                  transition: "all var(--transition-fast)",
+                  backgroundColor: "transparent",
+                  border: "1px solid transparent",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--spacing-sm)",
+                  position: "relative",
+                  overflow: "hidden",
                 }}
-                title="Delete document"
               >
-                <DeleteIcon size={12} />
-              </button>
-            </div>
-          ))}
+                <div style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "var(--radius-full)",
+                  backgroundColor: "var(--success-main)",
+                  flexShrink: 0,
+                }} />
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "var(--spacing-xs)",
+                  flex: 1,
+                  minWidth: 0,
+                }}>
+                  <div style={{
+                    fontSize: "var(--font-size-sm)",
+                    fontWeight: 500,
+                    color: "var(--text-primary)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}>
+                    {doc.title || doc.id}
+                  </div>
+                  <div style={{
+                    fontSize: "var(--font-size-xs)",
+                    color: "var(--text-tertiary)",
+                    fontFamily: "monospace",
+                  }}>
+                    {doc.updated ? new Date(doc.updated).toLocaleDateString() : doc.id.slice(-8)}
+                  </div>
+                </div>
+                {/* Delete button */}
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteDoc(doc.id);
+                  }}
+                  style={{
+                    padding: "var(--spacing-xs)",
+                    color: "var(--text-tertiary)",
+                    opacity: 0.7,
+                    cursor: "pointer",
+                    transition: "all var(--transition-fast)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  title="Delete document"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "var(--error-main)";
+                    e.currentTarget.style.opacity = "1";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "var(--text-tertiary)";
+                    e.currentTarget.style.opacity = "0.7";
+                  }}
+                >
+                  <DeleteIcon size={14} />
+                </div>
+              </div>
+            ))}
+          </div>
           {docs.length === 0 && (
-            <div style={{ fontSize: 12, color: "var(--neutral-gray)" }}>
-              No documents
+            <div style={{
+              padding: "var(--spacing-2xl)",
+              textAlign: "center",
+              color: "var(--text-tertiary)",
+              fontSize: "var(--font-size-sm)",
+            }}>
+              <div style={{
+                fontSize: "var(--font-size-3xl)",
+                marginBottom: "var(--spacing-md)",
+                opacity: 0.3,
+              }}>
+                📄
+              </div>
+              <div style={{ fontWeight: 500, marginBottom: "var(--spacing-xs)" }}>
+                No documents yet
+              </div>
+              <div style={{ fontSize: "var(--font-size-xs)" }}>
+                Upload documents to see them here
+              </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
 } 
+
+// Add spin animation for loading state
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+document.head.appendChild(style); 
