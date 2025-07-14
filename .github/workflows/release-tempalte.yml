@@ -1,0 +1,40 @@
+name: Release Tempalte
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_VERSION: '18'
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+      # Removed Node setup, install dependencies, and build steps; replace with repository packaging
+      - name: Package repository into zip
+        run: |
+          BRANCH_NAME="${GITHUB_REF##*/}"
+          APP_DIR="app"
+          mkdir -p "$APP_DIR"
+          shopt -s dotglob
+          for item in * .*; do
+            if [[ "$item" != "$APP_DIR" && "$item" != "." && "$item" != ".." && "$item" != ".git" ]]; then
+              cp -r "$item" "$APP_DIR/"
+            fi
+          done
+          zip -r "${BRANCH_NAME}.zip" "$APP_DIR"
+
+      # Create or update a GitHub Release for this branch/tag and attach the bundle ZIP
+      - name: Publish release with asset
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}-${{ github.run_id }}
+          name: Build for ${{ github.ref_name }} (run ${{ github.run_number }})
+          files: ${{ github.ref_name }}.zip
+          draft: false
+          prerelease: false 
